@@ -246,6 +246,17 @@ request:
 response:                             # 每個 status 一筆
   - status: 201
     schema_ref: internal/router/payload/audio.go#AudioConvertResponse
+    fields:                           # 選填；對稱 request.fields[]
+      - name: id
+        type: int64
+        description: DB row id
+      - name: status
+        type: string
+        enum: [pending, processing, completed, failed]
+      - name: result_url
+        type: string
+        nullable: true                # pointer / Optional / null-able field 標 true
+        description: "status=completed 才有值"
   - status: 400
     error_code: PARAMETER_INVALID
     note: "id 無法 parse 成 int64"     # 選填，解釋特定情境
@@ -480,7 +491,7 @@ Webhook 通常跟 outbound 的整合同 provider（e.g. WhatsApp 接收事件 + 
 | `middlewares[]` | ✓ | list | 每項含 `id` + 選填 `code_ref` / `config_env` / `note` |
 | `inline_auth_checks[]` |  | list | 每項含 `name` / `code_ref` / `scope` / `note`；handler 或 service layer 的 inline 驗證（非 middleware） |
 | `request` |  | map | `content_type` / `schema_ref` / `path_params[]` / `headers_optional[]` / `fields[]` / `body` |
-| `response[]` | ✓ | list | 每項含 `status` + 選填 `schema_ref` / `body` / `error_code` / `note` |
+| `response[]` | ✓ | list | 每項含 `status` + 選填 `schema_ref` / `body` / `error_code` / `note` / `fields[]`（`fields[].{ name, type, nullable?, enum?, description? }`；對稱 `request.fields[]`） |
 | `steps[]` |  | list | 見上方 step 所有欄位；可為空 `[]`；每 step 可加 `failure_semantic` / `optional` 表達失敗行為 |
 | `uses` | ✓ | map | 六個 key: `tables` / `topics_produced` / `topics_consumed` / `integrations` / `workers_triggered` / `log_sinks_produced` |
 | `sequence_mermaid` |  | string | 完整 Mermaid 原始碼 |
@@ -1181,3 +1192,17 @@ steps:
 **被評估但作廢的想法**：
 - 同 middleware id 重複出現時用 `<id>-2` 命名 — 實際多為刻意設計（例如 outer + inner `gin.Recovery()` 讓 panic 後 access log 仍能寫），manifest 的 middlewares[] 只記 logical chain 一次即可。
 - URL auto-match（integration.id 與 target repo id 相等時自動做跨 repo 連結）— 自動規則表達力不夠（integration 對多 target API、path 會被改名、URL 有 template 變數不好 normalize）、UI 位置與使用者心智對不上；改為 declare-at-source 維護成本更低。
+
+### `response[].fields[]` 對稱化（向後相容）
+
+| 改動位置 | 新增 | 動機 |
+|---|---|---|
+| §4 `response[].fields[]` | 新選填欄位；shape `{ name, type, nullable?, enum?, description? }` | 原 spec 只有 `request.fields[]`，response 只能靠 `schema_ref` link 出去；UI 上兩邊不對稱（Request 看到欄位 + enum + validation，Response 只看到 status + schema_ref link）。實務上 response 也常有「code-only 資訊」（enum 值、status-dependent nullability、業務描述），schema_ref 指向的 struct 沒有這些。加 `fields[]` 讓想填的 repo 可以填，不填仍相容。 |
+| Aggregator Zod + `src/app/repos/[repo]/apis/[api]/page.tsx` | `ResponseSpec.fields[]` 選填；Responses 區 render field list（對稱 Request 區塊） | UI 對稱；點進 API detail 就看得到 response shape，不用再跳 source code |
+
+**與 `request.fields[]` 的欄位差異**：`request.fields[].required`（caller 要不要送） → `response.fields[].nullable`（response 是否可能為 null）。兩邊 semantic 不同，不共用欄位名。
+
+**套用策略**：
+- 新 API 鼓勵填；舊 API 不強制回填（`fields[]` 選填）
+- 對 response shape 單純（直接 serialize struct、無狀態依賴）的 API，只寫 `schema_ref` 就夠
+- 狀態機式 response（某欄位 status=X 才有值、enum 在應用層定義）值得填 `fields[]`

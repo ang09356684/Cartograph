@@ -28,6 +28,19 @@ request:
 response:
   - status: 201
     schema_ref: internal/router/payload/uploads.go#UploadSessionResponse
+    fields:
+      - name: upload_id
+        type: string
+        description: Use this in the signed-webhook callback after PUT completes
+      - name: upload_url
+        type: string
+        description: Pre-signed PUT URL; valid for 15 minutes
+      - name: object_key
+        type: string
+        description: "Target storage key (e.g. uploads/<uuid>.jpg)"
+      - name: expires_at
+        type: string
+        description: ISO8601 timestamp — upload_url becomes invalid after this
   - status: 400
     error_code: INVALID_SIZE
   - status: 401

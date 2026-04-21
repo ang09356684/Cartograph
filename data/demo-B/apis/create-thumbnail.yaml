@@ -30,6 +30,17 @@ response:
   - status: 202
     schema_ref: internal/router/payload/images.go#CreateThumbnailResponse
     note: "Returns image_id; poll GET /api/v1/images/:id for status"
+    fields:
+      - name: image_id
+        type: string
+        description: UUID; stable identifier used for the poll endpoint
+      - name: status
+        type: string
+        enum: [pending, processing, ready, failed]
+        description: Always `pending` at creation time
+      - name: poll_url
+        type: string
+        description: Fully-qualified URL to GET /api/v1/images/:id
   - status: 400
     error_code: INVALID_SOURCE
   - status: 401

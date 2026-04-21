@@ -30,6 +30,25 @@ request:
 response:
   - status: 201
     schema_ref: internal/router/payload/links.go#CreateLinkResponse
+    fields:
+      - name: id
+        type: int64
+        description: DB row id
+      - name: slug
+        type: string
+        description: Unique short identifier (6-char base62 or user-supplied)
+      - name: target_url
+        type: string
+      - name: short_url
+        type: string
+        description: Fully-qualified short URL (e.g. https://demo-a.example/<slug>)
+      - name: preview_image_id
+        type: string
+        nullable: true
+        description: Set after demo-B finishes rendering; null on best-effort failure
+      - name: created_at
+        type: string
+        description: ISO8601 timestamp
   - status: 400
     error_code: INVALID_URL
     note: "target_url does not parse as http/https"

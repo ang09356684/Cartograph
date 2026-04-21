@@ -81,12 +81,25 @@ const RequestSchema = z.object({
   body: z.string().optional(),
 });
 
+// Response body fields. Symmetric with RequestField but uses `nullable`
+// instead of `required` — response is what the server returns, so the
+// caller-side notion of "required input" doesn't apply; what matters is
+// whether a field can be null / absent in the payload.
+const ResponseField = z.object({
+  name: z.string(),
+  type: z.string(),
+  nullable: z.boolean().optional(),
+  enum: z.array(z.string()).optional(),
+  description: z.string().optional(),
+});
+
 const ResponseSpec = z.object({
   status: z.number(),
   schema_ref: z.string().optional(),
   body: z.string().optional(),
   error_code: z.string().optional(),
   note: z.string().optional(),
+  fields: z.array(ResponseField).optional(),
 });
 
 const Step = z.object({

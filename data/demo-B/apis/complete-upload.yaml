@@ -29,6 +29,15 @@ request:
 response:
   - status: 200
     schema_ref: internal/router/payload/uploads.go#CompleteUploadResponse
+    fields:
+      - name: upload_id
+        type: string
+      - name: source_path
+        type: string
+        description: Object-storage key under uploads/ prefix
+      - name: completed_at
+        type: string
+        description: ISO8601 timestamp
   - status: 400
     error_code: INVALID_SIGNATURE
   - status: 404

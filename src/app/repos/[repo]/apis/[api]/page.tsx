@@ -203,7 +203,7 @@ export default async function ApiDetail({
                 >
                   {r.status}
                 </span>
-                <div className="text-xs">
+                <div className="text-xs flex-1 min-w-0">
                   {r.error_code && (
                     <span className="font-mono">{r.error_code}</span>
                   )}
@@ -213,6 +213,41 @@ export default async function ApiDetail({
                   )}
                   {r.note && (
                     <p className="text-slate-500 mt-0.5">{r.note}</p>
+                  )}
+                  {r.fields && r.fields.length > 0 && (
+                    <ul className="mt-1.5 space-y-1">
+                      {r.fields.map((f) => (
+                        <li key={f.name}>
+                          <span className="font-mono text-slate-900">
+                            {f.name}
+                          </span>
+                          <span className="text-slate-500">: {f.type}</span>
+                          {f.nullable && (
+                            <span className="text-slate-400 ml-1">
+                              (nullable)
+                            </span>
+                          )}
+                          {f.description && (
+                            <span className="text-slate-500">
+                              {" "}
+                              — {f.description}
+                            </span>
+                          )}
+                          {f.enum && (
+                            <div className="flex flex-wrap gap-1 ml-2 mt-0.5">
+                              {f.enum.map((v) => (
+                                <span
+                                  key={v}
+                                  className="font-mono text-[11px] px-1 py-0.5 rounded bg-slate-100"
+                                >
+                                  {v}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
                   )}
                 </div>
               </li>

@@ -138,6 +138,8 @@ def create_audio_convert(payload: AudioConvertRequest, ...):
 | `response[].schema_ref` | `c.JSON(200, AudioConvertResponse{...})` → struct 位置 | FastAPI `response_model=` 的類 |
 | `response[].error_code` | repo 內部的 error code enum | 內部 exception / DRF error serializer |
 | `response[].note` | 手寫解釋（何時回這個 status） | 同 |
+| `response[].fields[]` | 看 response struct 定義；pointer 欄位 → `nullable: true`；enum 值從應用層常數 / DB constraint 抓 | Pydantic response_model fields；`Optional[...]` → `nullable: true` |
+| `response[].fields[].enum` | response struct 本身不帶，看 domain model / DB 的 status constraint | Pydantic `Literal[...]` 或 `Enum` |
 | `steps[]` | **讀 handler function body**，每個「做一件事」的區塊 = 一步 | 同 |
 | `steps[].code_ref` | 該步驟真正實作的 function（通常在 service layer） | 同 |
 | `steps[].target` | 該步驟碰到的實體（DB update / publish / external call）| 同 |

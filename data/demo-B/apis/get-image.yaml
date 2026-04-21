@@ -21,6 +21,32 @@ request:
 response:
   - status: 200
     schema_ref: internal/router/payload/images.go#ImageResponse
+    fields:
+      - name: id
+        type: string
+      - name: status
+        type: string
+        enum: [pending, processing, ready, failed]
+      - name: source_path
+        type: string
+        description: Original object-storage key (under uploads/)
+      - name: thumbnail_url
+        type: string
+        nullable: true
+        description: "Short-lived signed URL; present when status=ready and signing succeeds"
+      - name: width
+        type: int
+        nullable: true
+        description: Populated once status=ready
+      - name: height
+        type: int
+        nullable: true
+      - name: error
+        type: string
+        nullable: true
+        description: Populated when status=failed
+      - name: created_at
+        type: string
   - status: 404
     error_code: IMAGE_NOT_FOUND
 

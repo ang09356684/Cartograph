@@ -25,6 +25,13 @@ request:
 response:
   - status: 200
     schema_ref: internal/router/payload/stats.go#TopLinksResponse
+    fields:
+      - name: links
+        type: array<object>
+        description: "Ordered by click_count desc; each { slug, target_url, click_count, created_at }"
+      - name: window_days
+        type: int
+        description: Always 7 for this endpoint
   - status: 401
     error_code: AUTH_INVALID_KEY
 

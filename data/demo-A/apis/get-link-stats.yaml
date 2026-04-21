@@ -23,6 +23,19 @@ request:
 response:
   - status: 200
     schema_ref: internal/router/payload/stats.go#LinkStatsResponse
+    fields:
+      - name: slug
+        type: string
+      - name: total_clicks
+        type: int64
+      - name: last_24h_clicks
+        type: int64
+      - name: top_referrers
+        type: array<object>
+        description: "Top 5 referrers, each { referrer_host, count }"
+      - name: hourly_buckets
+        type: array<object>
+        description: "Past 24 hours bucketed; each { hour (ISO8601), count }"
   - status: 404
     error_code: SLUG_NOT_FOUND
   - status: 401
