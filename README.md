@@ -241,7 +241,3 @@ Schema gaps — add them via this flow:
 3. Pilot on one repo; once stable, include in the skill behaviour if relevant.
 
 Everything can go in the same PR — Zod contract, docs, skill instructions.
-
-## Licence
-
-MIT.

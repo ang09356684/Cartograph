@@ -198,7 +198,3 @@ Schema 不夠用 → 依下列流程擴充：
 3. 先在一個 repo 試點；穩定後若影響 skill 行為，更 SKILL.md
 
 上述全部可以在同一個 PR — Zod 契約、docs、skill 指令同步更新。
-
-## 授權
-
-MIT.
