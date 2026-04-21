@@ -91,8 +91,8 @@ rm -rf data/demo-A data/demo-B
 ```
 
 Your own `data/<repo-id>/` output (from `cartograph-init` /
-`cartograph-continue`) is gitignored by default so it won't collide with the
-demo.
+`cartograph-continue`) is tracked by git — commit it alongside the rest of
+your changes like any other file.
 
 ## How to use (adding a new source repo)
 

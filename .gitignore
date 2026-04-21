@@ -7,9 +7,4 @@ node_modules/
 next-env.d.ts
 tsconfig.tsbuildinfo
 
-# Per-user manifest output — skills write here; commit on purpose only.
-# (`demo-A` / `demo-B` are the shipped demo fixtures and stay committed.)
-data/*
-!data/demo-A/
-!data/demo-B/
 batch_plan/
