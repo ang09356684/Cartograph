@@ -1,0 +1,50 @@
+id: get-link-stats
+method: GET
+path: /api/v1/stats/:slug
+component: api
+description: Return aggregated click stats for a single slug — total, last-24h, top referrers.
+auth: api_key
+code_ref: internal/router/handler_stats.go#GetLinkStats
+
+middleware_pipeline: authenticated
+middlewares:
+  - id: cors
+  - id: request-id
+  - id: request-logger
+  - id: api-key-auth
+  - id: rate-limit
+
+request:
+  path_params:
+    - name: slug
+      type: string
+      required: true
+
+response:
+  - status: 200
+    schema_ref: internal/router/payload/stats.go#LinkStatsResponse
+  - status: 404
+    error_code: SLUG_NOT_FOUND
+  - status: 401
+    error_code: AUTH_INVALID_KEY
+
+steps:
+  - order: 1
+    action: get_link_by_slug
+    target: table:link
+    code_ref: internal/adapter/repository/postgres/link_repo.go#FindBySlug
+  - order: 2
+    action: aggregate_clicks
+    target: table:click_event
+    rule: "SELECT COUNT(*), date_trunc('hour', occurred_at) ... WHERE link_id = ? GROUP BY ..."
+    code_ref: internal/adapter/repository/postgres/click_event_repo.go#AggregateByLink
+  - order: 3
+    action: respond
+    body: LinkStatsResponse
+    status: 200
+
+uses:
+  tables: [link, click_event]
+  topics_produced: []
+  topics_consumed: []
+  integrations: []

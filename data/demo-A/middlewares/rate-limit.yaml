@@ -1,0 +1,15 @@
+id: rate-limit
+kind: rate-limit
+description: Token-bucket rate limiter keyed on caller identity (or IP for anonymous). Returns 429 with Retry-After when exhausted.
+code_ref: internal/router/middleware_ratelimit.go#RateLimitMiddleware
+reads_context:
+  - key: caller
+    type: "*auth.Caller"
+    description: "When present (authenticated routes), rate-limit bucket is per caller; otherwise falls back to client IP"
+error_responses:
+  - status: 429
+    error_code: RATE_LIMITED
+    when: "Bucket exhausted for the current key"
+notes:
+  - "Default 60 req/min for anonymous, 600 req/min for authenticated callers"
+  - "Backed by the redis-cache integration (INCR + TTL)"

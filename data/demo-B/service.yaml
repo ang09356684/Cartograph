@@ -1,0 +1,108 @@
+id: demo-B
+team: media-team
+description: Image processing service — accepts uploads, generates thumbnails on demand, and serves processed images from object storage.
+tech:
+  - go
+  - gin
+  - postgres
+  - gcp-pubsub
+  - gcs
+
+components:
+  - id: api
+    binary: cmd/api
+    description: Gin HTTP server — image CRUD + upload session management
+  - id: worker
+    binary: cmd/worker
+    description: Pub/Sub subscriber — renders thumbnails from source images
+
+apis:
+  - id: create-thumbnail
+    file: apis/create-thumbnail.yaml
+  - id: get-image
+    file: apis/get-image.yaml
+  - id: request-upload-url
+    file: apis/request-upload-url.yaml
+  - id: complete-upload
+    file: apis/complete-upload.yaml
+
+workers:
+  - id: thumbnail-generator
+    file: workers/thumbnail-generator.yaml
+
+tables:
+  - id: image
+    file: tables/image.yaml
+  - id: upload_session
+    file: tables/upload_session.yaml
+
+topics_produced:
+  - id: thumbnail-tasks
+    file: topics/thumbnail-tasks.yaml
+topics_consumed:
+  - id: thumbnail-tasks
+    file: topics/thumbnail-tasks.yaml
+
+integrations:
+  - id: object-storage
+    file: integrations/object-storage.yaml
+  - id: webhook-upload-complete
+    file: integrations/webhook-upload-complete.yaml
+
+middlewares:
+  - id: cors
+    file: middlewares/cors.yaml
+  - id: request-id
+    file: middlewares/request-id.yaml
+  - id: request-logger
+    file: middlewares/request-logger.yaml
+  - id: api-key-auth
+    file: middlewares/api-key-auth.yaml
+
+depends_on_infra:
+  - postgres
+  - gcp-pubsub
+  - gcs
+
+middleware_pipelines:
+  - id: public
+    description: Public GET routes
+    order:
+      - cors
+      - request-id
+      - request-logger
+  - id: authenticated
+    description: Mutating routes requiring API key
+    order:
+      - cors
+      - request-id
+      - request-logger
+      - api-key-auth
+
+env_config:
+  - key: APP_DATABASE_URL
+    used_by: [api, worker]
+    source: secret-manager
+  - key: APP_GCS_BUCKET
+    used_by: [api, worker]
+    default: demo-b-images
+  - key: APP_PUBSUB_THUMBNAIL_TOPIC
+    used_by: [api]
+    default: thumbnail-tasks
+  - key: APP_API_KEYS
+    used_by: [api-key-auth]
+    source: secret-manager
+
+environments:
+  - id: staging
+    gcp_project: demo-staging
+    region: us-central1
+    deployment_type: cloud-run
+    api_url_pattern: "https://demo-b-staging-*.a.run.app"
+    gcs_bucket: demo-b-staging-images
+  - id: production
+    gcp_project: demo-prod
+    region: us-central1
+    deployment_type: cloud-run
+    api_url_pattern: "https://demo-b-prod-*.a.run.app"
+    gcs_bucket: demo-b-prod-images

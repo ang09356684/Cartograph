@@ -1,0 +1,18 @@
+id: image-service
+kind: outbound-http
+provider: demo-B
+description: Calls demo-B to generate preview thumbnails for new short links.
+directions: [outbound]
+code_ref: internal/adapter/imageservice/client.go
+outbound:
+  operations:
+    - id: create_thumbnail
+      method: POST
+      url: "https://demo-b.example.com/api/v1/images/thumbnail"
+      code_ref: internal/adapter/imageservice/client.go#CreateThumbnail
+      description: "Kicks off thumbnail generation; returns an image id to store on the link row"
+      failure_semantic: best_effort
+  auth: api-key
+  auth_env: APP_IMAGE_SERVICE_API_KEY
+used_by:
+  apis: [create-link]

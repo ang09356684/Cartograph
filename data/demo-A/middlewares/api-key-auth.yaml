@@ -1,0 +1,23 @@
+id: api-key-auth
+kind: auth
+description: Validates the X-API-Key header against a configured set of keys. On success populates a Caller identity in the request context.
+code_ref: internal/router/middleware_auth.go#APIKeyAuth.Required
+config:
+  env_vars:
+    - APP_API_KEYS
+  secret_source: secret-manager
+  note: "Comma-separated list of allowed keys; rotate by prepending new keys then removing the old ones."
+writes_context:
+  - key: caller
+    type: "*auth.Caller"
+    description: "Downstream handlers read caller tier from this to check rate-limit buckets"
+error_responses:
+  - status: 401
+    error_code: AUTH_MISSING_KEY
+    when: "X-API-Key header is absent"
+  - status: 401
+    error_code: AUTH_INVALID_KEY
+    when: "Key does not match any configured value"
+order_constraints:
+  - must_be_after: request-logger
+    reason: "401s should appear in the access log for diagnosis"

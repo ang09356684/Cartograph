@@ -1,0 +1,65 @@
+id: request-upload-url
+method: POST
+path: /api/v1/uploads
+component: api
+description: Issue a pre-signed object-storage URL so the caller can PUT an image directly. Returns an upload_id for later confirmation.
+auth: api_key
+code_ref: internal/router/handler_uploads.go#RequestUploadURL
+
+middleware_pipeline: authenticated
+middlewares:
+  - id: cors
+  - id: request-id
+  - id: request-logger
+  - id: api-key-auth
+
+request:
+  content_type: application/json
+  fields:
+    - name: content_type
+      type: string
+      required: true
+      enum: [image/jpeg, image/png, image/webp]
+    - name: size_bytes
+      type: int
+      required: true
+      validation: "1 - 10_485_760 (10 MB)"
+
+response:
+  - status: 201
+    schema_ref: internal/router/payload/uploads.go#UploadSessionResponse
+  - status: 400
+    error_code: INVALID_SIZE
+  - status: 401
+    error_code: AUTH_INVALID_KEY
+
+steps:
+  - order: 1
+    action: bind_json_body
+  - order: 2
+    action: validate_size
+    rule: "size_bytes within 1..10 MB"
+  - order: 3
+    action: generate_object_key
+    rule: "uploads/<uuid>.<ext>"
+    code_ref: internal/app/service/upload_service.go#GenerateKey
+  - order: 4
+    action: sign_put_url
+    target: integration:object-storage
+    rule: "15-minute validity"
+    code_ref: internal/adapter/objectstorage/client.go#SignWrite
+  - order: 5
+    action: insert_row
+    target: table:upload_session
+    rule: "INSERT INTO upload_session (id, source_path, expires_at) VALUES (...)"
+    code_ref: internal/adapter/repository/postgres/upload_session_repo.go#Insert
+  - order: 6
+    action: respond
+    body: UploadSessionResponse
+    status: 201
+
+uses:
+  tables: [upload_session]
+  topics_produced: []
+  topics_consumed: []
+  integrations: [object-storage]

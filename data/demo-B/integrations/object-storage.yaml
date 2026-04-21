@@ -1,0 +1,24 @@
+id: object-storage
+kind: cloud-storage
+provider: gcp
+description: Object storage for raw uploads and rendered thumbnails. API issues pre-signed upload URLs; worker reads source and writes thumbnail.
+directions: [outbound]
+code_ref: internal/adapter/objectstorage/client.go
+bucket_pattern: "demo-b-{env}-images"
+bucket_env: APP_GCS_BUCKET
+paths:
+  - path: "uploads/"
+    direction: write
+    note: "Pre-signed PUT URLs issued by request-upload-url"
+    used_by:
+      apis: [request-upload-url]
+      workers: [thumbnail-generator]
+  - path: "thumbnails/"
+    direction: write
+    note: "Worker writes rendered thumbnails here"
+    used_by:
+      workers: [thumbnail-generator]
+auth: gcp-service-account
+used_by:
+  apis: [request-upload-url, get-image]
+  workers: [thumbnail-generator]

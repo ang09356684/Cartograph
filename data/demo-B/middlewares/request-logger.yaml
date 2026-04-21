@@ -1,0 +1,14 @@
+id: request-logger
+kind: observability
+description: Structured access log per request.
+code_ref: internal/router/middleware_logger.go#LoggerMiddleware
+reads_context:
+  - key: requestid (context value)
+    type: string
+writes_context:
+  - key: zerolog sub-logger
+    type: "*zerolog.Logger"
+    description: "Pre-populated fields for handler logging"
+order_constraints:
+  - must_be_after: request-id
+    reason: "Needs requestid value"

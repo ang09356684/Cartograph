@@ -1,0 +1,63 @@
+id: complete-upload
+endpoint_type: webhook
+method: POST
+path: /api/v1/uploads/complete
+component: api
+description: Webhook called by client upload widgets after the PUT to object-storage finishes. Marks the upload session completed so subsequent thumbnail requests can reference it.
+auth: webhook-signature
+code_ref: internal/router/handler_uploads.go#CompleteUpload
+signature_header: X-Upload-Signature
+verification_token_env: APP_UPLOAD_WEBHOOK_SECRET
+
+middleware_pipeline: public
+middlewares:
+  - id: cors
+  - id: request-id
+  - id: request-logger
+
+request:
+  content_type: application/json
+  fields:
+    - name: upload_id
+      type: string
+      required: true
+    - name: timestamp
+      type: int
+      required: true
+      validation: "Unix seconds; must be within 5 minutes of server time"
+
+response:
+  - status: 200
+    schema_ref: internal/router/payload/uploads.go#CompleteUploadResponse
+  - status: 400
+    error_code: INVALID_SIGNATURE
+  - status: 404
+    error_code: UPLOAD_SESSION_NOT_FOUND
+  - status: 410
+    error_code: UPLOAD_SESSION_EXPIRED
+
+steps:
+  - order: 1
+    action: verify_signature
+    rule: "HMAC-SHA256(upload_id + timestamp) vs X-Upload-Signature"
+    code_ref: internal/router/handler_uploads.go#verifyUploadSignature
+  - order: 2
+    action: get_upload_session
+    target: table:upload_session
+    code_ref: internal/adapter/repository/postgres/upload_session_repo.go#FindByID
+  - order: 3
+    action: update_row
+    target: table:upload_session
+    to: "completed"
+    rule: "UPDATE upload_session SET completed_at = NOW() WHERE id = ? AND expires_at > NOW()"
+    code_ref: internal/adapter/repository/postgres/upload_session_repo.go#MarkCompleted
+  - order: 4
+    action: respond
+    body: CompleteUploadResponse
+    status: 200
+
+uses:
+  tables: [upload_session]
+  topics_produced: []
+  topics_consumed: []
+  integrations: [webhook-upload-complete]

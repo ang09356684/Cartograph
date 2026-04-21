@@ -1,0 +1,35 @@
+id: thumbnail-tasks
+provider: gcp-pubsub
+gcp_project_pattern: demo-{env}
+description: Each message kicks off thumbnail rendering for one source image. API produces; worker consumes.
+schema_ref: internal/adapter/eventbroker/events.go#ThumbnailTaskMessage
+message_schema:
+  fields:
+    - name: image_id
+      type: string
+      required: true
+    - name: source_path
+      type: string
+      required: true
+    - name: requested_by
+      type: string
+      required: true
+      description: "Caller key hash so the worker can populate audit fields"
+    - name: size
+      type: string
+      required: false
+      enum: [small, medium, large]
+      description: "Default medium"
+attributes:
+  - name: priority
+    type: string
+    description: "low / normal / high (drives worker dispatch order)"
+produced_by:
+  - api: create-thumbnail
+consumed_by:
+  - worker: thumbnail-generator
+    subscription: "{env}-demo-b-thumbnail-tasks-subscription"
+retry_policy:
+  max_outstanding_messages: 10
+  max_extension: 30m
+delivery_guarantee: at-least-once

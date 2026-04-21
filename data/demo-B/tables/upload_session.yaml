@@ -1,0 +1,33 @@
+id: upload_session
+database: postgres
+description: Short-lived rows tracking a pending client-side upload. Expires 15 minutes after issue.
+migration_ref: migrations/002_create_upload_session.up.sql
+model_code_ref: internal/domain/upload_session.go#UploadSession
+repo_code_ref: internal/adapter/repository/postgres/upload_session_repo.go
+columns:
+  - name: id
+    type: TEXT
+    primary_key: true
+    description: "UUID returned to the client"
+  - name: source_path
+    type: TEXT
+    nullable: false
+    description: "Pre-signed object-storage key the client will PUT to"
+  - name: expires_at
+    type: TIMESTAMPTZ
+    nullable: false
+  - name: completed_at
+    type: TIMESTAMPTZ
+    nullable: true
+    description: "Set by complete-upload once the client confirms"
+  - name: created_at
+    type: TIMESTAMPTZ
+    nullable: false
+    default: "NOW()"
+indexes:
+  - name: pk_upload_session
+    columns: [id]
+    unique: true
+    type: primary_key
+  - name: idx_upload_session_expires
+    columns: [expires_at]

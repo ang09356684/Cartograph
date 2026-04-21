@@ -1,0 +1,39 @@
+id: link-clicks
+provider: gcp-pubsub
+gcp_project_pattern: demo-{env}
+description: One message per link resolution. The API fires-and-forgets; the worker consumes and aggregates.
+schema_ref: internal/adapter/eventbroker/events.go#LinkClickMessage
+message_schema:
+  fields:
+    - name: link_id
+      type: int64
+      required: true
+    - name: slug
+      type: string
+      required: true
+    - name: occurred_at
+      type: string
+      required: true
+      description: "RFC3339 timestamp"
+    - name: referrer
+      type: string
+      nullable: true
+    - name: user_agent
+      type: string
+      nullable: true
+    - name: country_code
+      type: string
+      nullable: true
+attributes:
+  - name: source
+    type: string
+    description: "Always 'resolve-link' in this demo"
+produced_by:
+  - api: resolve-link
+consumed_by:
+  - worker: link-click-aggregator
+    subscription: "{env}-demo-a-link-clicks-subscription"
+retry_policy:
+  max_outstanding_messages: 100
+  max_extension: 10m
+delivery_guarantee: at-least-once

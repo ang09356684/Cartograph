@@ -1,0 +1,56 @@
+id: link-click-aggregator
+kind: pubsub-subscriber
+component: worker
+description: Consumes link-clicks messages; writes raw rows to click_event and bumps click_count on link.
+binary: cmd/worker
+code_ref: internal/worker/click_handler.go#Handle
+subscribes_topic: link-clicks
+subscription_pattern: "{env}-demo-a-link-clicks-subscription"
+subscription_env: APP_PUBSUB_SUBSCRIPTION
+receive_settings:
+  max_outstanding_messages: 100
+  max_extension: 10m
+idempotency:
+  strategy: primary-key-deferred
+  rule: "link_id + occurred_at dedupes retries within a short window"
+ack_semantics:
+  ack_on: [success, idempotent_duplicate]
+  nack_on: [db_error]
+steps:
+  - order: 1
+    action: unmarshal
+    schema: LinkClickMessage
+  - order: 2
+    action: insert_row
+    target: table:click_event
+    code_ref: internal/adapter/repository/postgres/click_event_repo.go#Insert
+  - order: 3
+    action: update_row
+    target: table:link
+    rule: "UPDATE link SET click_count = click_count + 1 WHERE id = ?"
+    code_ref: internal/adapter/repository/postgres/link_repo.go#IncrementClickCount
+  - order: 4
+    action: return_nil_to_ack
+    note: "Success path acks; db errors bubble up as Nack"
+failure_handling:
+  on_db_error:
+    - action: log_error
+    - action: return_error_to_nack
+      note: "Pub/Sub will retry per subscription policy"
+uses:
+  tables: [click_event, link]
+  topics_produced: []
+  topics_consumed: [link-clicks]
+  integrations: []
+sequence_mermaid: |
+  sequenceDiagram
+    participant PS as Pub/Sub
+    participant W as Worker
+    participant DB as Postgres
+
+    PS->>W: LinkClickMessage
+    W->>W: unmarshal
+    W->>DB: INSERT click_event
+    W->>DB: UPDATE link SET click_count = click_count + 1
+    DB-->>W: ok
+    W-->>PS: ack

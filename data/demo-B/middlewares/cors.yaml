@@ -1,0 +1,4 @@
+id: cors
+kind: other
+description: Permissive CORS for browser clients (image preview widgets).
+code_ref: internal/router/middleware_cors.go#CORSMiddleware

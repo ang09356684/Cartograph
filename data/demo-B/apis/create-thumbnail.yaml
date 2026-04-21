@@ -1,0 +1,82 @@
+id: create-thumbnail
+method: POST
+path: /api/v1/images/thumbnail
+component: api
+description: Kicks off thumbnail generation for an already-uploaded source image. Inserts a row, publishes a Pub/Sub task, and returns an image id the caller can poll later.
+auth: api_key
+code_ref: internal/router/handler_images.go#CreateThumbnail
+
+middleware_pipeline: authenticated
+middlewares:
+  - id: cors
+  - id: request-id
+  - id: request-logger
+  - id: api-key-auth
+
+request:
+  content_type: application/json
+  schema_ref: internal/router/payload/images.go#CreateThumbnailRequest
+  fields:
+    - name: source_path
+      type: string
+      required: true
+      validation: "Object-storage key under uploads/ prefix"
+    - name: size
+      type: string
+      required: false
+      enum: [small, medium, large]
+
+response:
+  - status: 202
+    schema_ref: internal/router/payload/images.go#CreateThumbnailResponse
+    note: "Returns image_id; poll GET /api/v1/images/:id for status"
+  - status: 400
+    error_code: INVALID_SOURCE
+  - status: 401
+    error_code: AUTH_INVALID_KEY
+
+steps:
+  - order: 1
+    action: bind_json_body
+    code_ref: internal/router/handler_images.go#CreateThumbnail
+  - order: 2
+    action: validate_source_path
+    rule: "Must start with 'uploads/' prefix"
+    code_ref: internal/app/service/image_service.go#ValidateSourcePath
+  - order: 3
+    action: insert_row
+    target: table:image
+    rule: "status='pending', source_path=?"
+    code_ref: internal/adapter/repository/postgres/image_repo.go#Insert
+  - order: 4
+    action: publish
+    target: topic:thumbnail-tasks
+    schema: ThumbnailTaskMessage
+    failure_semantic: block
+    note: "If publish fails we return 500 — the row exists in 'pending' but no worker will pick it up"
+  - order: 5
+    action: respond
+    body: CreateThumbnailResponse
+    status: 202
+
+uses:
+  tables: [image]
+  topics_produced: [thumbnail-tasks]
+  topics_consumed: []
+  integrations: []
+  workers_triggered: [thumbnail-generator]
+
+sequence_mermaid: |
+  sequenceDiagram
+    participant C as Client (e.g. demo-A)
+    participant A as demo-B API
+    participant DB as Postgres
+    participant PS as Pub/Sub
+
+    C->>A: POST /api/v1/images/thumbnail
+    A->>A: validate source_path
+    A->>DB: INSERT image (status=pending)
+    DB-->>A: row (id)
+    A->>PS: Publish ThumbnailTaskMessage
+    PS-->>A: ack
+    A-->>C: 202 {image_id}

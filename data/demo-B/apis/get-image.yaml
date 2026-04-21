@@ -1,0 +1,48 @@
+id: get-image
+method: GET
+path: /api/v1/images/:id
+component: api
+description: Read image metadata (status, dimensions, thumbnail URL). Used by callers to poll for thumbnail-generation completion.
+auth: none
+code_ref: internal/router/handler_images.go#GetImage
+
+middleware_pipeline: public
+middlewares:
+  - id: cors
+  - id: request-id
+  - id: request-logger
+
+request:
+  path_params:
+    - name: id
+      type: string
+      required: true
+
+response:
+  - status: 200
+    schema_ref: internal/router/payload/images.go#ImageResponse
+  - status: 404
+    error_code: IMAGE_NOT_FOUND
+
+steps:
+  - order: 1
+    action: get_image_by_id
+    target: table:image
+    code_ref: internal/adapter/repository/postgres/image_repo.go#FindByID
+  - order: 2
+    action: sign_thumbnail_url
+    target: integration:object-storage
+    rule: "If status=ready, issue a short-lived signed URL for thumbnails/<id>.jpg"
+    code_ref: internal/adapter/objectstorage/client.go#SignRead
+    failure_semantic: best_effort
+    note: "Signing failure degrades to returning status without URL"
+  - order: 3
+    action: respond
+    body: ImageResponse
+    status: 200
+
+uses:
+  tables: [image]
+  topics_produced: []
+  topics_consumed: []
+  integrations: [object-storage]

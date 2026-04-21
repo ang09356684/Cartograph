@@ -1,0 +1,78 @@
+id: resolve-link
+method: GET
+path: /api/v1/links/:slug
+component: api
+description: Resolve a slug to its target URL (302 redirect). Publishes a click event for async aggregation.
+auth: none
+code_ref: internal/router/handler_links.go#ResolveLink
+
+middleware_pipeline: public
+middlewares:
+  - id: cors
+  - id: request-id
+  - id: request-logger
+  - id: rate-limit
+
+request:
+  path_params:
+    - name: slug
+      type: string
+      required: true
+
+response:
+  - status: 302
+    note: "Redirect to target_url with Location header"
+  - status: 404
+    error_code: SLUG_NOT_FOUND
+  - status: 410
+    error_code: LINK_DISABLED
+
+steps:
+  - order: 1
+    action: get_link_by_slug
+    target: table:link
+    rule: "SELECT * FROM link WHERE slug = ? AND status != 'deleted'"
+    code_ref: internal/adapter/repository/postgres/link_repo.go#FindBySlug
+    note: "Checks redis-cache first; miss falls through to Postgres and repopulates cache"
+  - order: 2
+    action: return_error
+    status: 404
+    note: "If no row found"
+  - order: 3
+    action: publish
+    target: topic:link-clicks
+    schema: LinkClickMessage
+    failure_semantic: log_only
+    note: "Fire-and-forget; we don't block the redirect on Pub/Sub"
+  - order: 4
+    action: respond
+    status: 302
+    note: "Set Location header to link.target_url"
+
+uses:
+  tables: [link]
+  topics_produced: [link-clicks]
+  topics_consumed: []
+  integrations: [redis-cache]
+  workers_triggered: [link-click-aggregator]
+
+sequence_mermaid: |
+  sequenceDiagram
+    participant C as Client
+    participant A as demo-A API
+    participant R as Redis
+    participant DB as Postgres
+    participant PS as Pub/Sub
+
+    C->>A: GET /api/v1/links/:slug
+    A->>R: GET slug
+    alt cache miss
+      R-->>A: miss
+      A->>DB: SELECT link
+      DB-->>A: row
+      A->>R: SET slug (TTL 5m)
+    else cache hit
+      R-->>A: link
+    end
+    A->>PS: publish LinkClickMessage (log_only)
+    A-->>C: 302 Location: target_url

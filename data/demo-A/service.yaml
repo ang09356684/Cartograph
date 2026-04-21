@@ -1,0 +1,114 @@
+id: demo-A
+repo: example-org/demo-A
+team: platform-team
+description: URL shortener service — issues short codes, resolves them, tracks click metrics, and generates preview thumbnails via the image service.
+tech:
+  - go
+  - gin
+  - postgres
+  - gcp-pubsub
+  - redis
+
+components:
+  - id: api
+    binary: cmd/api
+    description: Gin HTTP server — link CRUD + resolution + stats
+  - id: worker
+    binary: cmd/worker
+    description: Pub/Sub subscriber — consumes click events and updates aggregate counters
+
+apis:
+  - id: create-link
+    file: apis/create-link.yaml
+  - id: resolve-link
+    file: apis/resolve-link.yaml
+  - id: get-link-stats
+    file: apis/get-link-stats.yaml
+  - id: list-top-links
+    file: apis/list-top-links.yaml
+
+workers:
+  - id: link-click-aggregator
+    file: workers/link-click-aggregator.yaml
+
+tables:
+  - id: link
+    file: tables/link.yaml
+  - id: click_event
+    file: tables/click_event.yaml
+
+topics_produced:
+  - id: link-clicks
+    file: topics/link-clicks.yaml
+topics_consumed:
+  - id: link-clicks
+    file: topics/link-clicks.yaml
+
+integrations:
+  - id: image-service
+    file: integrations/image-service.yaml
+  - id: redis-cache
+    file: integrations/redis-cache.yaml
+
+middlewares:
+  - id: cors
+    file: middlewares/cors.yaml
+  - id: request-id
+    file: middlewares/request-id.yaml
+  - id: request-logger
+    file: middlewares/request-logger.yaml
+  - id: api-key-auth
+    file: middlewares/api-key-auth.yaml
+  - id: rate-limit
+    file: middlewares/rate-limit.yaml
+
+depends_on_infra:
+  - postgres
+  - gcp-pubsub
+  - redis
+
+middleware_pipelines:
+  - id: public
+    description: Public routes — no auth, rate-limited
+    order:
+      - cors
+      - request-id
+      - request-logger
+      - rate-limit
+  - id: authenticated
+    description: Routes requiring API key
+    order:
+      - cors
+      - request-id
+      - request-logger
+      - api-key-auth
+      - rate-limit
+
+env_config:
+  - key: APP_DATABASE_URL
+    used_by: [api, worker]
+    source: secret-manager
+  - key: APP_REDIS_URL
+    used_by: [api]
+    source: secret-manager
+  - key: APP_PUBSUB_TOPIC
+    used_by: [api]
+    default: link-clicks
+  - key: APP_API_KEYS
+    used_by: [api-key-auth]
+    source: secret-manager
+  - key: APP_IMAGE_SERVICE_URL
+    used_by: [api]
+    default: "https://demo-b.example.com"
+
+environments:
+  - id: staging
+    gcp_project: demo-staging
+    region: us-central1
+    deployment_type: cloud-run
+    api_url_pattern: "https://demo-a-staging-*.a.run.app"
+  - id: production
+    gcp_project: demo-prod
+    region: us-central1
+    deployment_type: cloud-run
+    api_url_pattern: "https://demo-a-prod-*.a.run.app"

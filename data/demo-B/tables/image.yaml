@@ -1,0 +1,41 @@
+id: image
+database: postgres
+description: One row per processed image — source bucket path, rendered thumbnail path, lifecycle state.
+migration_ref: migrations/001_create_image.up.sql
+model_code_ref: internal/domain/image.go#Image
+repo_code_ref: internal/adapter/repository/postgres/image_repo.go
+columns:
+  - name: id
+    type: TEXT
+    primary_key: true
+    description: "UUID generated at creation time"
+  - name: source_path
+    type: TEXT
+    nullable: false
+    description: "Object-storage key of the original upload"
+  - name: thumbnail_path
+    type: TEXT
+    nullable: true
+    description: "Object-storage key of the rendered thumbnail; null until worker finishes"
+  - name: width
+    type: INTEGER
+    nullable: true
+  - name: height
+    type: INTEGER
+    nullable: true
+  - name: status
+    type: TEXT
+    nullable: false
+    default: "'pending'"
+    enum: [pending, processing, ready, failed]
+  - name: created_at
+    type: TIMESTAMPTZ
+    nullable: false
+    default: "NOW()"
+indexes:
+  - name: pk_image
+    columns: [id]
+    unique: true
+    type: primary_key
+  - name: idx_image_status_created
+    columns: [status, created_at]

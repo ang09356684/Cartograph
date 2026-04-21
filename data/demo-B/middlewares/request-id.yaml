@@ -1,0 +1,8 @@
+id: request-id
+kind: request-id
+description: Generates or forwards X-Request-ID per request.
+code_ref: internal/router/middleware_requestid.go#RequestIDMiddleware
+writes_context:
+  - key: requestid (context value)
+    type: string
+    description: "Consumed by request-logger"

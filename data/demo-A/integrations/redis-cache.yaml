@@ -1,0 +1,24 @@
+id: redis-cache
+kind: outbound-http
+provider: redis
+description: Redis used for slug resolution cache and rate-limit buckets.
+directions: [outbound]
+code_ref: internal/adapter/redis/client.go
+outbound:
+  operations:
+    - id: get_slug
+      code_ref: internal/adapter/redis/client.go#GetSlug
+      description: "Slug → link row cache (TTL 5m); miss falls through to Postgres"
+      failure_semantic: best_effort
+    - id: set_slug
+      code_ref: internal/adapter/redis/client.go#SetSlug
+      description: "Populate cache on Postgres hit"
+      failure_semantic: log_only
+    - id: incr_rate_bucket
+      code_ref: internal/adapter/redis/client.go#IncrRateBucket
+      description: "Rate-limit INCR + TTL"
+      failure_semantic: best_effort
+  auth_env: APP_REDIS_URL
+used_by:
+  apis: [resolve-link]
+  workers: []

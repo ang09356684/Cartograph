@@ -1,0 +1,88 @@
+id: thumbnail-generator
+kind: pubsub-subscriber
+component: worker
+description: Consumes thumbnail-tasks; downloads source from object-storage, renders a thumbnail, uploads it, and updates the image row.
+binary: cmd/worker
+code_ref: internal/worker/thumbnail_handler.go#Handle
+subscribes_topic: thumbnail-tasks
+subscription_pattern: "{env}-demo-b-thumbnail-tasks-subscription"
+subscription_env: APP_PUBSUB_SUBSCRIPTION
+receive_settings:
+  max_outstanding_messages: 10
+  max_extension: 30m
+processors:
+  - id: small
+    code_ref: internal/worker/render.go#RenderSmall
+  - id: medium
+    code_ref: internal/worker/render.go#RenderMedium
+  - id: large
+    code_ref: internal/worker/render.go#RenderLarge
+idempotency:
+  strategy: status-check
+  rule: "skip if image.status = 'ready'"
+ack_semantics:
+  ack_on: [success, duplicate, permanent_failure_recorded]
+  nack_on: [transient_render_error]
+steps:
+  - order: 1
+    action: unmarshal
+    schema: ThumbnailTaskMessage
+  - order: 2
+    action: get_image
+    target: table:image
+    code_ref: internal/adapter/repository/postgres/image_repo.go#FindByID
+  - order: 3
+    action: idempotency_check
+    rule: skip_if_status_ready
+  - order: 4
+    action: update_status
+    target: table:image
+    to: processing
+  - order: 5
+    action: download_file
+    target: integration:object-storage
+    path: "uploads/{source_path}"
+  - order: 6
+    action: render_thumbnail
+    code_ref: internal/worker/render.go#Render
+    rule: "Output dims depend on size attribute"
+  - order: 7
+    action: upload_file
+    target: integration:object-storage
+    path: "thumbnails/{image_id}.jpg"
+  - order: 8
+    action: update_status
+    target: table:image
+    to: ready
+    rule: "UPDATE image SET thumbnail_path = ?, width = ?, height = ?, status = 'ready'"
+  - order: 9
+    action: return_nil_to_ack
+failure_handling:
+  on_render_error:
+    - action: update_status
+      target: table:image
+      to: failed
+    - action: set_error_message
+    - action: return_nil_to_ack
+      note: "Failure is persisted so re-delivery wouldn't help; ack to stop redelivery"
+uses:
+  tables: [image]
+  topics_produced: []
+  topics_consumed: [thumbnail-tasks]
+  integrations: [object-storage]
+sequence_mermaid: |
+  sequenceDiagram
+    participant PS as Pub/Sub
+    participant W as Worker
+    participant DB as Postgres
+    participant S as Object Storage
+
+    PS->>W: ThumbnailTaskMessage
+    W->>DB: SELECT image
+    W->>DB: UPDATE status=processing
+    W->>S: GET uploads/...
+    S-->>W: raw bytes
+    W->>W: render
+    W->>S: PUT thumbnails/...
+    W->>DB: UPDATE thumbnail_path, status=ready
+    W-->>PS: ack

@@ -62,9 +62,37 @@ make typecheck               # tsc --noEmit
 make lint                    # next lint
 ```
 
-Once running, open the URL printed by `make dev`. The page is empty until you
-add at least one repo's manifest under `data/<repo-id>/` — use the skills
-below.
+Once running, open the URL printed by `make dev`. You will see two fictional
+demo repos shipped with this project so the UI works out of the box — see the
+next section.
+
+## Demo data (shipped with the repo)
+
+`data/demo-A/` and `data/demo-B/` are **fictional test fixtures** that exist
+only so you can explore the UI without setting up a real source repo:
+
+- **`demo-A`** — a pretend URL-shortener service (`example-org/demo-A` on
+  "GitHub" so `code_ref` renders as clickable GitHub links — the links 404
+  because the org is fake, but the rendering behaviour is real)
+- **`demo-B`** — a pretend image-processing service (no `repo:` field set
+  → local-only mode, `code_ref` renders as plain text)
+- **Cross-repo link** — `demo-A/apis/create-link` step 5 calls
+  `demo-B/apis/create-thumbnail` via `target_api_ref`; open that step to see
+  the live cross-repo link in action
+
+What the demo covers: 4 APIs per repo split into 2 groups, workers, tables,
+topics, integrations (inbound webhook + outbound HTTP), middlewares, Pub/Sub
+producer/consumer join, cross-repo forward link.
+
+**When you actually start using Cartograph**, delete both demo folders:
+
+```bash
+rm -rf data/demo-A data/demo-B
+```
+
+Your own `data/<repo-id>/` output (from `cartograph-init` /
+`cartograph-continue`) is gitignored by default so it won't collide with the
+demo.
 
 ## How to use (adding a new source repo)
 

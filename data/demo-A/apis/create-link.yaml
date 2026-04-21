@@ -1,0 +1,96 @@
+id: create-link
+method: POST
+path: /api/v1/links
+component: api
+description: Create a new short link. Generates a unique slug, persists the row, and asynchronously asks demo-B to render a preview thumbnail.
+auth: api_key
+code_ref: internal/router/handler_links.go#CreateLink
+
+middleware_pipeline: authenticated
+middlewares:
+  - id: cors
+  - id: request-id
+  - id: request-logger
+  - id: api-key-auth
+  - id: rate-limit
+
+request:
+  content_type: application/json
+  schema_ref: internal/router/payload/links.go#CreateLinkRequest
+  fields:
+    - name: target_url
+      type: string
+      required: true
+      validation: "http/https URL, max 2048 chars"
+    - name: slug
+      type: string
+      required: false
+      validation: "optional custom slug [a-z0-9-], 3-32 chars"
+
+response:
+  - status: 201
+    schema_ref: internal/router/payload/links.go#CreateLinkResponse
+  - status: 400
+    error_code: INVALID_URL
+    note: "target_url does not parse as http/https"
+  - status: 409
+    error_code: SLUG_TAKEN
+  - status: 401
+    error_code: AUTH_INVALID_KEY
+
+steps:
+  - order: 1
+    action: bind_json_body
+    code_ref: internal/router/handler_links.go#CreateLink
+  - order: 2
+    action: validate_target_url
+    rule: "Scheme must be http/https; host non-empty"
+    code_ref: internal/app/service/link_service.go#ValidateTargetURL
+  - order: 3
+    action: generate_slug
+    rule: "6-char base62; retry up to 5 times on collision"
+    code_ref: internal/app/service/link_service.go#GenerateSlug
+  - order: 4
+    action: insert_row
+    target: table:link
+    rule: "INSERT INTO link (slug, target_url, owner_key) VALUES (...)"
+    code_ref: internal/adapter/repository/postgres/link_repo.go#Insert
+  - order: 5
+    action: call_create_thumbnail
+    target: integration:image-service
+    target_api_ref: "demo-B:create-thumbnail"
+    failure_semantic: best_effort
+    note: "Fire-and-forget; if demo-B is down the link still works, just without a preview"
+  - order: 6
+    action: update_row
+    target: table:link
+    to: "preview_image_id set"
+    rule: "UPDATE link SET preview_image_id = ? WHERE id = ?"
+    code_ref: internal/adapter/repository/postgres/link_repo.go#SetPreviewImageID
+    failure_semantic: best_effort
+  - order: 7
+    action: respond
+    body: CreateLinkResponse
+    status: 201
+
+uses:
+  tables: [link]
+  topics_produced: []
+  topics_consumed: []
+  integrations: [image-service]
+
+sequence_mermaid: |
+  sequenceDiagram
+    participant C as Client
+    participant A as demo-A API
+    participant DB as Postgres
+    participant B as demo-B API
+
+    C->>A: POST /api/v1/links (target_url)
+    A->>A: validate + generate slug
+    A->>DB: INSERT link
+    DB-->>A: row (id)
+    A->>B: POST /api/v1/images/thumbnail (best-effort)
+    B-->>A: image_id
+    A->>DB: UPDATE link SET preview_image_id
+    A-->>C: 201 CreateLinkResponse

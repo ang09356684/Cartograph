@@ -1,0 +1,18 @@
+id: api-key-auth
+kind: auth
+description: Validates X-API-Key against the configured allowlist. Callers from demo-A use a service-to-service key issued out-of-band.
+code_ref: internal/router/middleware_auth.go#APIKeyAuth.Required
+config:
+  env_vars:
+    - APP_API_KEYS
+  secret_source: secret-manager
+error_responses:
+  - status: 401
+    error_code: AUTH_MISSING_KEY
+    when: "X-API-Key header is absent"
+  - status: 401
+    error_code: AUTH_INVALID_KEY
+    when: "Key not in the allowlist"
+order_constraints:
+  - must_be_after: request-logger
+    reason: "401 responses should show up in the access log"

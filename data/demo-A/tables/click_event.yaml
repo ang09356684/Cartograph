@@ -1,0 +1,34 @@
+id: click_event
+database: postgres
+description: Raw click log — one row per redirect. Worker aggregates counts into the link table.
+migration_ref: migrations/002_create_click_event.up.sql
+model_code_ref: internal/domain/click_event.go#ClickEvent
+repo_code_ref: internal/adapter/repository/postgres/click_event_repo.go
+columns:
+  - name: id
+    type: BIGSERIAL
+    primary_key: true
+  - name: link_id
+    type: BIGINT
+    nullable: false
+  - name: occurred_at
+    type: TIMESTAMPTZ
+    nullable: false
+    default: "NOW()"
+  - name: referrer
+    type: TEXT
+    nullable: true
+  - name: user_agent
+    type: TEXT
+    nullable: true
+  - name: country_code
+    type: TEXT
+    nullable: true
+    description: "2-letter ISO code derived from IP"
+indexes:
+  - name: pk_click_event
+    columns: [id]
+    unique: true
+    type: primary_key
+  - name: idx_click_event_link_occurred
+    columns: [link_id, occurred_at]

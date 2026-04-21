@@ -1,0 +1,14 @@
+id: webhook-upload-complete
+kind: webhook-source
+description: Client-facing webhook endpoint that third-party upload widgets call after the browser PUT to object-storage finishes.
+directions: [inbound]
+inbound:
+  webhook_endpoints:
+    - complete-upload
+  auth: signed-token
+  signature_header: X-Upload-Signature
+  verification_env: APP_UPLOAD_WEBHOOK_SECRET
+  note: "HMAC-SHA256 over the upload_id + timestamp, verified against APP_UPLOAD_WEBHOOK_SECRET"
+used_by:
+  apis: [complete-upload]
+  workers: []

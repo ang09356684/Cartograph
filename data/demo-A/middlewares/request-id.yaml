@@ -1,0 +1,11 @@
+id: request-id
+kind: request-id
+description: Generates a UUID per request if the client did not send X-Request-ID; echoes the id back in the response header.
+code_ref: internal/router/middleware_requestid.go#RequestIDMiddleware
+writes_context:
+  - key: X-Request-ID (header)
+    type: string
+    description: "Echoed to response and propagated on outbound HTTP calls"
+  - key: requestid (context value)
+    type: string
+    description: "Read by request-logger and forwarded to downstream services"

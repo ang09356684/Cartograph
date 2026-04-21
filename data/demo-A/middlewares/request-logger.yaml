@@ -1,0 +1,15 @@
+id: request-logger
+kind: observability
+description: Emits a structured access log per request with status, latency, path, method, requestID and caller IP.
+code_ref: internal/router/middleware_logger.go#LoggerMiddleware
+reads_context:
+  - key: requestid (context value)
+    type: string
+    description: "From request-id middleware"
+writes_context:
+  - key: zerolog sub-logger
+    type: "*zerolog.Logger"
+    description: "Pre-filled with requestID/path/method fields for downstream handlers to use via zerolog.Ctx(ctx)"
+order_constraints:
+  - must_be_after: request-id
+    reason: "Reads the requestid value injected by request-id"
