@@ -256,7 +256,7 @@ export const ApiManifest = z.object({
   response: z.array(ResponseSpec).default([]),
   steps: z.array(Step).default([]),
   uses: UsesBlock,
-  sequence_mermaid: z.string().optional(),
+  sequence_mermaid: z.string(),
 });
 
 // ---------------------------------------------------------------------------
@@ -294,7 +294,7 @@ export const WorkerManifest = z.object({
   steps: z.array(Step).default([]),
   failure_handling: z.record(z.any()).optional(),
   uses: UsesBlock,
-  sequence_mermaid: z.string().optional(),
+  sequence_mermaid: z.string(),
 });
 
 // ---------------------------------------------------------------------------

@@ -5,6 +5,7 @@ import path from "path";
 import { parse as parseYaml } from "yaml";
 
 import {
+  Api,
   ApiManifest,
   IntegrationManifest,
   MiddlewareManifest,
@@ -87,4 +88,37 @@ export async function getRepo(repoId: string): Promise<Repo | null> {
   const ids = await listRepoIds();
   if (!ids.includes(repoId)) return null;
   return loadRepo(repoId);
+}
+
+// 以 base id 聚合同一個 API 的多個 version。
+// 回傳 Map<id, Api[]>；每個 list 已按 version 由新到舊排序（無 version 視為最舊）。
+export function groupApisByBaseId(apis: Api[]): Map<string, Api[]> {
+  const byId = new Map<string, Api[]>();
+  for (const api of apis) {
+    const list = byId.get(api.id) ?? [];
+    list.push(api);
+    byId.set(api.id, list);
+  }
+  for (const list of byId.values()) list.sort(compareApiByVersionDesc);
+  return byId;
+}
+
+function compareApiByVersionDesc(a: Api, b: Api): number {
+  return versionRank(b.version) - versionRank(a.version);
+}
+
+function versionRank(v?: string): number {
+  if (!v) return 0;
+  const m = /^v(\d+)$/.exec(v);
+  return m ? Number(m[1]) : 0;
+}
+
+// 從同一 base id 的版本 list 和 query param 選出要顯示的那一支。
+// 缺省或查無對應時回傳最新版（list[0]）。
+export function pickApiVersion(versions: Api[], requested?: string): Api {
+  if (requested) {
+    const hit = versions.find((v) => v.version === requested);
+    if (hit) return hit;
+  }
+  return versions[0];
 }

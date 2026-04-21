@@ -1,8 +1,11 @@
 id: list-top-links
+version: v1
+status: deprecated
+replaced_by: v2
 method: GET
 path: /api/v1/stats/top
 component: api
-description: Return the top N most-clicked links over the past 7 days. Caller-scoped — only returns links owned by the authenticated API key.
+description: Return the top N most-clicked links over the past 7 days. Caller-scoped — only returns links owned by the authenticated API key. (Legacy — v2 adds configurable time window and cursor pagination.)
 auth: api_key
 code_ref: internal/router/handler_stats.go#ListTopLinks
 
@@ -47,6 +50,17 @@ steps:
     action: respond
     body: TopLinksResponse
     status: 200
+
+sequence_mermaid: |
+  sequenceDiagram
+    participant C as Client
+    participant A as api
+    participant L as link table
+    C->>A: GET /api/v1/stats/top?limit=20
+    A->>A: cors + request-id + api-key-auth + rate-limit
+    A->>L: list_top_links owner_key limit (fixed 7d window)
+    L-->>A: rows (click_count desc)
+    A-->>C: 200 + TopLinksResponse
 
 uses:
   tables: [link]

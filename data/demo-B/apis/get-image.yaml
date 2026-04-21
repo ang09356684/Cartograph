@@ -67,6 +67,28 @@ steps:
     body: ImageResponse
     status: 200
 
+sequence_mermaid: |
+  sequenceDiagram
+    participant C as Client
+    participant A as api
+    participant I as image table
+    participant S as object-storage
+    C->>A: GET /api/v1/images/:id
+    A->>A: cors + request-id (public)
+    A->>I: get image by id
+    alt not found
+      I-->>A: 0 rows
+      A-->>C: 404 IMAGE_NOT_FOUND
+    else found
+      I-->>A: image row
+      opt status=ready
+        A->>S: sign_thumbnail_url thumbnails/<id>.jpg
+        Note over A,S: failure_semantic=best_effort
+        S-->>A: signed URL (or error → omit URL)
+      end
+      A-->>C: 200 + ImageResponse
+    end
+
 uses:
   tables: [image]
   topics_produced: []

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getRepo, listRepoIds } from "@/lib/loader";
+import { getRepo, groupApisByBaseId, listRepoIds } from "@/lib/loader";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { EntityCard } from "@/components/EntityCard";
@@ -29,20 +29,23 @@ interface PageProps {
 interface ApiGroupNode {
   name: string;          // 只顯示自己這層，例如 "tag"
   fullPath: string;      // 完整路徑例如 "orgs/tag"（供 key / debug 用）
-  items: Api[];          // 直接落在此層的 APIs
+  items: Api[][];        // 直接落在此層的 APIs，每個 entry 是同一個 base id 的所有版本
   subgroups: ApiGroupNode[];
 }
 
-function buildApiTree(apis: Api[]): ApiGroupNode[] {
+// apiVersionGroups[i] = 同一 base id 的所有版本，已按新→舊排序。
+// 以最新版的 path 決定該 base id 落在哪個 sidebar group。
+function buildApiTree(apiVersionGroups: Api[][]): ApiGroupNode[] {
   type Node = {
     name: string;
-    items: Api[];
+    items: Api[][];
     subgroups: Map<string, Node>;
   };
   const root: Node = { name: "", items: [], subgroups: new Map() };
 
-  for (const api of apis) {
-    const parts = apiGroupName(api).split("/").filter(Boolean);
+  for (const versions of apiVersionGroups) {
+    const latest = versions[0];
+    const parts = apiGroupName(latest).split("/").filter(Boolean);
     let cursor = root;
     for (const part of parts) {
       let next = cursor.subgroups.get(part);
@@ -52,7 +55,7 @@ function buildApiTree(apis: Api[]): ApiGroupNode[] {
       }
       cursor = next;
     }
-    cursor.items.push(api);
+    cursor.items.push(versions);
   }
 
   const toTree = (node: Node, prefix = ""): ApiGroupNode[] =>
@@ -78,20 +81,29 @@ function countDeep(node: ApiGroupNode): number {
   );
 }
 
-function renderApiCard(repoId: string, a: Api) {
-  const deprecated = a.status === "deprecated" || a.status === "sunset";
-  const badges: string[] = [a.auth, a.component];
-  if (a.version) badges.push(a.version);
-  if (a.endpoint_type && a.endpoint_type !== "rest")
-    badges.push(a.endpoint_type);
-  if (a.status && a.status !== "active") badges.push(a.status);
+// `versions` 已按版本由新到舊排序；latest = versions[0]。
+// 多版本時 badges 會列出所有 version tag（最新在前），href 一律指向 base id
+// （detail 頁會依 ?version= 切換、缺省挑最新）。
+function renderApiCard(repoId: string, versions: Api[]) {
+  const latest = versions[0];
+  const deprecated =
+    latest.status === "deprecated" || latest.status === "sunset";
+  const badges: string[] = [latest.auth, latest.component];
+  if (versions.length > 1) {
+    for (const v of versions) if (v.version) badges.push(v.version);
+  } else if (latest.version) {
+    badges.push(latest.version);
+  }
+  if (latest.endpoint_type && latest.endpoint_type !== "rest")
+    badges.push(latest.endpoint_type);
+  if (latest.status && latest.status !== "active") badges.push(latest.status);
   return (
-    <div key={a.id} className={deprecated ? "opacity-60" : ""}>
+    <div key={latest.id} className={deprecated ? "opacity-60" : ""}>
       <EntityCard
-        href={apiPath(repoId, a.id)}
-        title={a.id}
-        subtitle={`${a.method} ${a.path}`}
-        description={a.description}
+        href={apiPath(repoId, latest.id)}
+        title={latest.id}
+        subtitle={`${latest.method} ${latest.path}`}
+        description={latest.description}
         badges={badges}
       />
     </div>
@@ -119,7 +131,7 @@ function GroupNode({
       {/* 本層直接的 cards */}
       {node.items.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {node.items.map((a) => renderApiCard(repoId, a))}
+          {node.items.map((versions) => renderApiCard(repoId, versions))}
         </div>
       )}
       {/* 巢狀子 group，以左側 border + 縮排示意層級 */}
@@ -159,16 +171,22 @@ export default async function ApisIndex({ params, searchParams }: PageProps) {
     (a) => a.endpoint_type ?? "rest",
   );
 
-  const filtered = repo.apis.filter((a) => {
-    if (methods.length > 0 && !methods.includes(a.method)) return false;
-    const status = a.status ?? "active";
-    if (statuses.length > 0 && !statuses.includes(status)) return false;
-    const etype = a.endpoint_type ?? "rest";
-    if (endpointTypes.length > 0 && !endpointTypes.includes(etype)) return false;
-    return matchesText(q, [a.id, a.path, a.description, a.group ?? ""]);
-  });
+  // Group by base id first；filter 條件在任一版本上滿足就整個 base id 留下
+  // （避免 V1/V2 其中一個版本被濾掉導致該 API 整行消失 / 單邊顯示）。
+  const grouped = groupApisByBaseId(repo.apis);
+  const versionGroups = Array.from(grouped.values());
+  const filteredGroups = versionGroups.filter((versions) =>
+    versions.some((a) => {
+      if (methods.length > 0 && !methods.includes(a.method)) return false;
+      const status = a.status ?? "active";
+      if (statuses.length > 0 && !statuses.includes(status)) return false;
+      const etype = a.endpoint_type ?? "rest";
+      if (endpointTypes.length > 0 && !endpointTypes.includes(etype)) return false;
+      return matchesText(q, [a.id, a.path, a.description, a.group ?? ""]);
+    }),
+  );
 
-  const tree = buildApiTree(filtered);
+  const tree = buildApiTree(filteredGroups);
 
   return (
     <div className="space-y-5">
@@ -182,7 +200,7 @@ export default async function ApisIndex({ params, searchParams }: PageProps) {
       <div className="flex items-baseline gap-3">
         <h1 className="text-2xl font-semibold">APIs</h1>
         <span className="text-sm text-slate-500">
-          {filtered.length} / {repo.apis.length}
+          {filteredGroups.length} / {versionGroups.length}
         </span>
       </div>
 

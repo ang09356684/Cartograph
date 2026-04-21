@@ -152,16 +152,42 @@ function makeGroups(
 export function buildSidebar(repo: Repo): SidebarSection[] {
   const repoId = repo.service.id;
 
-  const apiEntries: SidebarEntry[] = repo.apis.map((a) => ({
-    id: a.id,
-    label: a.id,
-    subtitle: `${a.method} ${a.path}`,
-    href: apiPath(repoId, a.id),
-    deprecated: a.status === "deprecated" || a.status === "sunset",
-    meta: a.version,
-  }));
+  // sidebar 一樣按 base id 去重；多版本 API 只出現一筆，以最新版的 path 顯示，
+  // meta 欄把所有版本 tag 並列（v2/v1）。點進去的 URL 不帶 ?version=，走 detail 頁預設最新。
+  const apiById = new Map<string, typeof repo.apis>();
+  for (const a of repo.apis) {
+    const arr = apiById.get(a.id);
+    if (arr) arr.push(a);
+    else apiById.set(a.id, [a]);
+  }
+  const apiLatest: typeof repo.apis = [];
+  for (const list of apiById.values()) {
+    const sorted = [...list].sort((a, b) => {
+      const rank = (v?: string) => {
+        if (!v) return 0;
+        const m = /^v(\d+)$/.exec(v);
+        return m ? Number(m[1]) : 0;
+      };
+      return rank(b.version) - rank(a.version);
+    });
+    apiLatest.push(sorted[0]);
+  }
+  const apiEntries: SidebarEntry[] = apiLatest.map((a) => {
+    const versions = apiById.get(a.id)!;
+    const versionTags = versions
+      .map((v) => v.version)
+      .filter((v): v is string => !!v);
+    return {
+      id: a.id,
+      label: a.id,
+      subtitle: `${a.method} ${a.path}`,
+      href: apiPath(repoId, a.id),
+      deprecated: a.status === "deprecated" || a.status === "sunset",
+      meta: versionTags.length > 1 ? versionTags.join("/") : a.version,
+    };
+  });
   const apiGroups = makeGroups(apiEntries, (i) =>
-    apiGroupName(repo.apis[i]),
+    apiGroupName(apiLatest[i]),
   );
 
   const workerEntries: SidebarEntry[] = repo.workers.map((w) => ({

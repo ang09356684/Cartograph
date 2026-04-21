@@ -25,7 +25,9 @@ apis:
   - id: get-link-stats
     file: apis/get-link-stats.yaml
   - id: list-top-links
-    file: apis/list-top-links.yaml
+    file: apis/list-top-links.v1.yaml
+  - id: list-top-links
+    file: apis/list-top-links.v2.yaml
 
 workers:
   - id: link-click-aggregator

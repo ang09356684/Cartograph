@@ -1,5 +1,12 @@
 import { notFound } from "next/navigation";
-import { getRepo, listRepoIds, loadRepos } from "@/lib/loader";
+import {
+  getRepo,
+  groupApisByBaseId,
+  listRepoIds,
+  loadRepos,
+  pickApiVersion,
+} from "@/lib/loader";
+import { ApiVersionSwitcher } from "@/components/ApiVersionSwitcher";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { CodeRef } from "@/components/CodeRef";
 import { MermaidDiagram } from "@/components/MermaidDiagram";
@@ -15,7 +22,12 @@ export async function generateStaticParams() {
   for (const id of ids) {
     const r = await getRepo(id);
     if (!r) continue;
-    for (const a of r.apis) out.push({ repo: id, api: a.id });
+    const seen = new Set<string>();
+    for (const a of r.apis) {
+      if (seen.has(a.id)) continue;
+      seen.add(a.id);
+      out.push({ repo: id, api: a.id });
+    }
   }
   return out;
 }
@@ -30,16 +42,32 @@ const methodColor: Record<string, string> = {
 
 export default async function ApiDetail({
   params,
+  searchParams,
 }: {
   params: { repo: string; api: string };
+  searchParams?: { version?: string | string[] };
 }) {
   const repo = await getRepo(params.repo);
   if (!repo) notFound();
-  const api = repo.apis.find((a) => a.id === params.api);
-  if (!api) notFound();
+  const grouped = groupApisByBaseId(repo.apis);
+  const versions = grouped.get(params.api);
+  if (!versions || versions.length === 0) notFound();
+  const requestedVersion =
+    typeof searchParams?.version === "string"
+      ? searchParams.version
+      : undefined;
+  const api = pickApiVersion(versions, requestedVersion);
 
   const repoId = repo.service.id;
   const ghRepo = repo.service.repo;
+  const latestVersion = versions[0].version ?? "";
+  const currentVersion = api.version ?? "";
+  // 下拉選單用；無 version 的單版 API 直接跳過（switcher 內部會回 null）。
+  const switcherOptions = versions.map((v, idx) => {
+    const tag = v.version ?? "—";
+    const label = idx === 0 ? `${tag} (latest)` : tag;
+    return { label, value: v.version ?? "" };
+  });
 
   // Load all repos so that target_api_ref on steps can resolve to real cross-repo API links
   // 當目標尚未被 aggregator index 時，resolveApiRef 會回報 exists=false，渲染成 disabled badge
@@ -68,6 +96,16 @@ export default async function ApiDetail({
           </span>
           <code className="font-mono text-slate-900">{api.path}</code>
           <span className="text-xs text-slate-500">auth: {api.auth}</span>
+          {api.version && (
+            <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">
+              {api.version}
+            </span>
+          )}
+          <ApiVersionSwitcher
+            versions={switcherOptions}
+            current={currentVersion}
+            latest={latestVersion}
+          />
         </div>
         <h1 className="text-2xl font-semibold">{api.id}</h1>
         <p className="text-slate-700">{api.description}</p>

@@ -56,6 +56,25 @@ steps:
     body: LinkStatsResponse
     status: 200
 
+sequence_mermaid: |
+  sequenceDiagram
+    participant C as Client
+    participant A as api
+    participant L as link table
+    participant E as click_event table
+    C->>A: GET /api/v1/stats/:slug
+    A->>A: cors + request-id + api-key-auth + rate-limit
+    A->>L: get link by slug
+    alt slug not found
+      L-->>A: 0 rows
+      A-->>C: 404 SLUG_NOT_FOUND
+    else found
+      L-->>A: link row
+      A->>E: aggregate clicks by link_id (total / 24h / hourly / top referrers)
+      E-->>A: aggregates
+      A-->>C: 200 + LinkStatsResponse
+    end
+
 uses:
   tables: [link, click_event]
   topics_produced: []

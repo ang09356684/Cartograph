@@ -71,6 +71,22 @@ steps:
     body: UploadSessionResponse
     status: 201
 
+sequence_mermaid: |
+  sequenceDiagram
+    participant C as Client
+    participant A as api
+    participant S as object-storage
+    participant U as upload_session table
+    C->>A: POST /api/v1/uploads
+    A->>A: cors + request-id + api-key-auth
+    A->>A: validate size_bytes 1..10 MB
+    A->>A: generate object_key uploads/<uuid>.<ext>
+    A->>S: sign_put_url 15-minute validity
+    S-->>A: signed PUT URL
+    A->>U: INSERT upload_session (id, source_path, expires_at)
+    U-->>A: row
+    A-->>C: 201 + UploadSessionResponse
+
 uses:
   tables: [upload_session]
   topics_produced: []

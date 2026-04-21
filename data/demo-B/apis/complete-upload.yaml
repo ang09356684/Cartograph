@@ -65,6 +65,29 @@ steps:
     body: CompleteUploadResponse
     status: 200
 
+sequence_mermaid: |
+  sequenceDiagram
+    participant W as Upload Widget
+    participant A as api
+    participant U as upload_session table
+    W->>A: POST /api/v1/uploads/complete
+    A->>A: verify X-Upload-Signature (HMAC + 5-min window)
+    alt signature invalid
+      A-->>W: 400 INVALID_SIGNATURE
+    else valid
+      A->>U: get upload_session by id
+      alt not found
+        U-->>A: 0 rows
+        A-->>W: 404 UPLOAD_SESSION_NOT_FOUND
+      else expired
+        A-->>W: 410 UPLOAD_SESSION_EXPIRED
+      else active
+        A->>U: UPDATE completed_at=NOW() WHERE id=? AND expires_at > NOW()
+        U-->>A: 1 row
+        A-->>W: 200 + CompleteUploadResponse
+      end
+    end
+
 uses:
   tables: [upload_session]
   topics_produced: []

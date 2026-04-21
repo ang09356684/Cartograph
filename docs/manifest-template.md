@@ -573,6 +573,24 @@ Pub/Sub event 是跨 service 的**業務訊號**，下游系統（other repos / 
 - **status**：`active` / `deprecated` / `sunset`
 - **deprecated_in / replaced_by**：deprecation 時間與後續版本 id，UI 可渲染遷移 hint
 - **只有單版本的 API 可省略 `version` 欄位**
+- **同 id 多版本並存時，所有版本都必填 `version`**（aggregator 用 `version` 欄位做 composite key 的第二段；缺 version 會被 `groupApisByBaseId` 視為「最舊版」，跟其他明列版本的 API 混在同 id 底下會判斷錯）
+
+### Aggregator UI 對多 version 的行為
+
+aggregator 原生支援同一個 base id 下多 version 並存；manifest 作者按上節規則填即可，不需要自己合 yaml：
+
+| 場景 | URL / 顯示 |
+|---|---|
+| list page | 每個 base id 只出現**一張卡**，以最新版的 path/description 顯示；badges 列出所有存在的 version tag |
+| detail page 預設 | `/repos/<repo>/apis/<id>` — 不帶 query 時顯示**最新版** |
+| detail page 切版 | 右上角 `Version` 下拉選單切換；選非最新版後 URL 變 `/repos/<repo>/apis/<id>?version=v1` |
+| 切回最新 | switcher 會自動把 `?version=` 從 query 移除，保持 canonical URL 乾淨 |
+| 跨 repo `target_api_ref: <repo>:<id>` | 解析到最新版（暫未支援 `@v<n>` 後綴；若要指到特定版本，aggregator 一側要另加解析器） |
+| 排序 | `v<n>` 以 N 數字遞減；無 `version` 欄位視為最舊 |
+| filter / search | 只要「任一版本」符合條件，整個 base id 就保留在 list 上（不會出現只剩半邊版本的殘影） |
+| sidebar | 一樣以 base id 去重；meta 欄把所有版本 tag 並列（如 `v2/v1`） |
+
+實作位置：`src/lib/loader.ts#groupApisByBaseId` / `pickApiVersion`、`src/lib/sidebar.ts#buildSidebar`、`src/components/ApiVersionSwitcher.tsx`、list page `src/app/repos/[repo]/apis/page.tsx`、detail page `src/app/repos/[repo]/apis/[api]/page.tsx`。
 
 ### API `group` 自動推算規則
 
