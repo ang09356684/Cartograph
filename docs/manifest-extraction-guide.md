@@ -433,7 +433,7 @@ known_external_consumers:
   - ❌ `A->>A: base + bearer-auth + inline scope check`
 - **可省略**（plumbing，已隱含在 C→A 或 A→C）：`parse_path_param` / `bind_json_body` / `get_credential` / `marshal_metadata` / `respond`
 - **必須獨立 arrow**：每個 business validation（quota / duplicate / ownership / format）/ 每個 DB read/write（含 SQL 條件）/ 每個 publish / external call（含 `failure_semantic` Note）/ 每個 status transition / 每種共用 topic 的 event type
-- **簡短同層驗證可合併**：`A->>A: bind body & validate audio_url scheme = https`（都是 handler 層輸入處理、錯誤碼都是 PARAMETER_INVALID）
+- **簡短同層驗證可合併**：`A->>A: bind body & validate <field> format`（都是 handler 層輸入處理、錯誤碼都是 PARAMETER_INVALID）
 - **失敗 / 條件分支**用 `alt` / `else` / `opt` 區塊
 
 **Go handler 常見 step ↔ arrow 對照**
@@ -443,8 +443,8 @@ known_external_consumers:
 | `parse_path_param` / `bind_json_body` / `get_credential` | 隱含在 `C->>A: METHOD /path` | 不畫 |
 | `check_<inline-scope>` | `A->>A: <ScopeCheckHelper>` | 獨立一行；不與 middleware 合併 |
 | `validate_<business rule>` | `S->>S: validate <rule>` | 每項一行；若有獨立錯誤碼更要分 |
-| `get_<resource>_by_id` | `S->>DB: SELECT FROM <table> WHERE ...` + `DB-->>S: <Result>` | 簡短 SQL |
-| `insert_row` / `update_row` / `delete_row` | `S->>DB: INSERT/UPDATE/DELETE ...` | |
+| `get_<resource>_by_id` | `S->>DB: get <entity> by id` | action-phrase；不寫 `SELECT ... WHERE id=?` |
+| `insert_row` / `update_row` / `delete_row` | `S->>DB: insert/update/delete <entity>` | 預設 action-phrase；SQL 片段僅在有 soft-delete filter / UPSERT / JOIN 等**語意關鍵**情境才保留（完整規則見 template §4 DB arrow SQL 粒度規則） |
 | `call_<operation>` | `S->>X: <operation>(...)` + `X-->>S: <result>` | X = integration participant |
 | `publish` | `S->>PS: Publish <Schema>{...}` + `Note over S,PS: failure_semantic=<X>` | failure_semantic log_only 要標 Note |
 | `publish` with async downstream | 加 `PS-->>W: deliver`（dashed） | W = 下游 worker id |
