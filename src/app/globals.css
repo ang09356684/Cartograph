@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+/* 提升根字體讓所有 rem-based 尺寸按比例放大：
+ *   text-xs  = 0.75rem  → 12px  ×1.125 = 13.5px
+ *   text-sm  = 0.875rem → 14px  ×1.125 = 15.75px
+ *   text-base= 1rem     → 16px  ×1.125 = 18px
+ *   text-lg  = 1.125rem → 18px  ×1.125 = 20.25px
+ *   text-2xl = 1.5rem   → 24px  ×1.125 = 27px
+ * 若仍覺得小，把下方 18px 改到 19px 或 20px。
+ */
+html {
+  font-size: 18px;
+}
+
+html, body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+}
+
+a { @apply text-sky-700 hover:text-sky-900 underline-offset-2; }
+a:hover { @apply underline; }
