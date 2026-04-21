@@ -150,7 +150,7 @@ def create_audio_convert(payload: AudioConvertRequest, ...):
 | `uses.topics_consumed` | API 通常不 consume；此欄位多為空 | 同 |
 | `uses.integrations` | handler / service layer 呼叫的 adapter | 同 |
 | `uses.workers_triggered` | publish 的 topic 被哪些 worker 消費（邏輯推論） | 同 |
-| `sequence_mermaid` | 手繪 / AI 產 | 同 |
+| `sequence_mermaid` | 手繪 / AI 產（2026-04 起必填；完整規則見 §7 與 template §4） | 同 |
 
 ### 2.2.1 `inline_auth_checks[]` 挖法
 
@@ -165,13 +165,13 @@ Handler function body 中，**在正常業務邏輯之前**、**不在 middlewar
 每個 inline check 記一筆：
 ```yaml
 inline_auth_checks:
-  - name: check-org-resource-in-credential-scope
-    code_ref: internal/router/param_util.go#CheckOrgResourceInCredentialScope
-    scope: org                       # org / member / channel / message / ...
-    note: "GET 時失敗回 404，其他 method 回 AUTH_UNAUTHORIZED_ORG"
+  - name: check-scope-in-credential
+    code_ref: internal/router/param_util.go#CheckScopeInCredential
+    scope: <scope-type>              # 依 service domain 自訂：tenant / project / workspace / channel / ...
+    note: "GET 時失敗回 404，其他 method 回 UNAUTHORIZED"
 ```
 
-`scope` 是自由值，推薦用資源 hierarchy 描述（org → channel → member → message）。
+`scope` 是自由值，推薦用資源 hierarchy 描述（例如 `tenant → workspace → sub-resource → item` 這類由粗到細的階層；依 service domain 自訂）。
 
 ### 2.2.2 `schema_ref` 指向 inline 型別
 
@@ -184,7 +184,7 @@ func ListTags(app *app.Application) gin.HandlerFunc {
 }
 ```
 
-此時 `schema_ref` 寫成 `internal/router/handler_tag_tag.go#ListTags.Response`（用 `.` 分隔外層 function 與 inner type）。
+此時 `schema_ref` 寫成 `internal/router/handler_<entity>.go#List<Entities>.Response`（用 `.` 分隔外層 function 與 inner type）。
 
 aggregator 解析：split by `.`，前段當 outer symbol（function 名），後段當 inner type 名。若 inner type 是匿名 struct literal 則用 `ListTags.__inline_response__` 之類的慣用佔位。
 
@@ -238,7 +238,7 @@ repo-b 的 `audio-convert` 就是 7 步，各有明確的 `action`：
 | `status` | `c.JSON(<status>, ...)` / `c.Status(<status>)` / `respondWithoutBody(c, http.StatusNoContent)` 裡的數字 | `raise HTTPException(status_code=...)` / `return Response(status_code=...)` |
 | `to` | `UPDATE ... SET status = 'X'` 裡的 `'X'`；或 ORM `obj.status = X; obj.save()` 裡的值 | 同 |
 | `path` | object-storage upload 的 key（例 `bucket.Object("audio/converted/...")`） | 同 |
-| `note` | 手寫；專門記 code 註解提到、但 code 本身看不出的語義（e.g. 「align with maac team 所以不送 event」） | 同 |
+| `note` | 手寫；專門記 code 註解提到、但 code 本身看不出的語義（e.g. 「align with sibling service owner 所以不送 event」） | 同 |
 | `optional` | 若該 step 失敗分支是「log + 繼續」就寫 `true`；建議改用 `failure_semantic` | 同 |
 | `failure_semantic` | 讀該 step 的錯誤處理寫法：見 §2.2.3 | 同 |
 | `target_api_ref` | **若此 step 透過 adapter 呼叫另一個 Cartograph-indexed repo 的特定 API 才填**；格式 `<target-repo-id>:<target-api-id>`（例如 `media-svc:audio-convert`）。挖法：看 adapter call 的 URL path（例：`internal/adapter/server/media_server.go` 的常數 `apiAudioConvert = "/api/v1/audio/convert"`）→ 對照目標 repo 的 `apis/<id>.yaml#path` 找出對應 api id。**目標 repo manifest 還沒寫也照填**，aggregator render 時會 degrade 成 disabled pending badge，目標加進來後自動活化。見 template §9。 | 同（讀 HTTP client / SDK call 的 URL path） |
@@ -361,7 +361,7 @@ known_external_consumers:
 | `code_ref` | adapter 入口（`internal/adapter/<name>/`） | `app/integrations/<name>/` |
 | `local_impl` | 有 mock / local fs 實作時 | 同 |
 | `inbound.webhook_endpoints` | 對應 `apis/<id>.yaml#endpoint_type: webhook` 的 id 列表 | 同 |
-| `inbound.auth` | signature 驗證方式（`meta-signature` / `stripe-signature` / ...） | 同 |
+| `inbound.auth` | signature 驗證方式（依廠商命名，例如 `<vendor>-signature` / `hmac-sha256` / ...） | 同 |
 | `inbound.signature_header` | 驗證用的 HTTP header 名 | 同 |
 | `inbound.verification_env` | 驗證 token 的 env var name | 同 |
 | `outbound.operations[]` | adapter 內 exported functions 逐一 | 同 |
@@ -416,31 +416,60 @@ known_external_consumers:
 
 ---
 
-## 7. Mermaid sequence diagram
+## 7. Mermaid sequence diagram（**required field**）
 
-這是**唯一需要手繪**的欄位。兩個技巧：
+2026-04 起 `sequence_mermaid` 為必填欄位（見 `manifest-template.md §4` 完整規則），Zod schema 會擋空值。這是**唯一需要手繪**的欄位。兩個技巧：
 
 1. **照著 steps[] 畫**：participants = handler + service + 外部依賴，message arrows = 每個 step 的 interaction
 2. **善用 LLM**：把 handler function 貼給 LLM「根據這段 code 產 mermaid sequenceDiagram」，再人工校正
 
-範例（repo-b audio-convert 的 sequence_mermaid 長這樣）：
+**規則速查**（完整版見 template §4「Sequence diagram 記錄原則」）：
+
+- 每支 API / worker yaml 都要有可 render 的 Mermaid `sequenceDiagram`，即使只是 DB 讀 + respond 4 行也要寫
+- **Participant 骨架**：Client `C` / API `A` / Service `S` / DB / Redis `R` / Pub/Sub `PS` / Worker `W` / Integration `X` — 實際會碰到的才列
+- **Middleware pipeline 合成一行**（`A->>A: base + bearer-auth [+ authorization]`）是唯一例外
+- **Handler inline auth check 必須獨立 arrow**（**不准**跟 middleware 合併 — 跨層級合併讀者看不出執行時機差異）
+  - ✅ `A->>A: base + bearer-auth` + `A->>A: <inline scope check>`
+  - ❌ `A->>A: base + bearer-auth + inline scope check`
+- **可省略**（plumbing，已隱含在 C→A 或 A→C）：`parse_path_param` / `bind_json_body` / `get_credential` / `marshal_metadata` / `respond`
+- **必須獨立 arrow**：每個 business validation（quota / duplicate / ownership / format）/ 每個 DB read/write（含 SQL 條件）/ 每個 publish / external call（含 `failure_semantic` Note）/ 每個 status transition / 每種共用 topic 的 event type
+- **簡短同層驗證可合併**：`A->>A: bind body & validate audio_url scheme = https`（都是 handler 層輸入處理、錯誤碼都是 PARAMETER_INVALID）
+- **失敗 / 條件分支**用 `alt` / `else` / `opt` 區塊
+
+**Go handler 常見 step ↔ arrow 對照**
+
+| steps[] action | Mermaid arrow | 備註 |
+|---|---|---|
+| `parse_path_param` / `bind_json_body` / `get_credential` | 隱含在 `C->>A: METHOD /path` | 不畫 |
+| `check_<inline-scope>` | `A->>A: <ScopeCheckHelper>` | 獨立一行；不與 middleware 合併 |
+| `validate_<business rule>` | `S->>S: validate <rule>` | 每項一行；若有獨立錯誤碼更要分 |
+| `get_<resource>_by_id` | `S->>DB: SELECT FROM <table> WHERE ...` + `DB-->>S: <Result>` | 簡短 SQL |
+| `insert_row` / `update_row` / `delete_row` | `S->>DB: INSERT/UPDATE/DELETE ...` | |
+| `call_<operation>` | `S->>X: <operation>(...)` + `X-->>S: <result>` | X = integration participant |
+| `publish` | `S->>PS: Publish <Schema>{...}` + `Note over S,PS: failure_semantic=<X>` | failure_semantic log_only 要標 Note |
+| `publish` with async downstream | 加 `PS-->>W: deliver`（dashed） | W = 下游 worker id |
+| `respond` | 隱含在 `A-->>C: <status> + <body>` | 不畫 |
+
+**Python (FastAPI / Django / Flask) 同理**，只是 `S` participant 對應不同 service / repository 層的函式。
+
+範例（通用 audio-convert 類 proxy + publish 流程）：
 ```mermaid
 sequenceDiagram
   participant C as Client
-  participant A as API (gin)
+  participant A as API
   participant Svc as ConversionService
   participant DB as Postgres
   participant PS as Pub/Sub (tasks)
 
   C->>A: POST /api/v1/audio/convert + JSON body
-  A->>A: middlewares: recovery → request-id → logger → bearer-auth
+  A->>A: base + bearer-auth
+  A->>A: bind body & validate source_url scheme = https
   A->>Svc: CreateAudioConversion(params)
-  Svc->>Svc: validate source_url / source_type / target_type
+  Svc->>Svc: validate source_type / target_type
   Svc->>DB: INSERT INTO conversion (status=pending)
   DB-->>Svc: conversion row (id)
-  Svc->>PS: Publish(TaskMessage{conversion_id})
-  PS-->>Svc: message_id
-  Svc-->>A: conversion
+  Svc->>PS: Publish TaskMessage{conversion_id}
+  Note over Svc,PS: failure_semantic=block
   A-->>C: 201 + AudioConvertResponse
 ```
 
