@@ -1,6 +1,6 @@
 ---
 name: cartograph-update
-description: Incrementally update a Cartograph manifest based on recent git history of the source repo. Reads the canonical templates first, determines a baseline (last time `data/<repo-id>/` was updated, or source-repo commit recorded in batch_plan), scans source-repo commits since then for changed files (handlers / middlewares / migrations / publishers / adapters), classifies them by entity kind, and patches the corresponding yaml files under `$CARTOGRAPH_HOME/data/<repo-id>/`. Automatically runs `manifest-validate` (Class A+B whole-tree scan + Class C handler/service audit on only the yaml it just patched) before advancing the baseline marker. Source repo is read-only input; all writes go into Cartograph. Supports `--api <id>` / `--scope <pattern>` / `--since <ref>` to target specific entities. Use when user says 「更新 manifest」「manifest 同步 code 變更」「update manifest since last run」「只更新 <某支 api>」.
+description: Incrementally update a Cartograph manifest based on recent git history of the source repo. Reads `manifest-template-essentials.md` + `manifest-extraction-guide.md` first, determines a baseline (last time `data/<repo-id>/` was updated, or source-repo commit recorded in batch_plan), scans source-repo commits since then for changed files (handlers / middlewares / migrations / publishers / adapters), classifies them by entity kind, and patches the corresponding yaml files under `$CARTOGRAPH_HOME/data/<repo-id>/`. Automatically runs `manifest-validate` (Class A+B whole-tree scan + Class C handler/service audit on only the yaml it just patched) before advancing the baseline marker. Source repo is read-only input; all writes go into Cartograph. Supports `--api <id>` / `--scope <pattern>` / `--since <ref>` to target specific entities. Use when user says 「更新 manifest」「manifest 同步 code 變更」「update manifest since last run」「只更新 <某支 api>」.
 ---
 
 # cartograph-update
@@ -29,14 +29,12 @@ $CARTOGRAPH_HOME/              ← CWD / $CARTOGRAPH_HOME
 
 ## Step 0 — Read templates FIRST (mandatory)
 
-1. `$CARTOGRAPH_HOME/docs/manifest-template-essentials.md` — **preferred** condensed yaml format spec (~450 lines; covers arrow types, SQL granularity, all field tables, cross-ref rules, common pitfalls). Fits in one Read call. If missing, fall back to `manifest-template.md` in chunks.
-2. `$CARTOGRAPH_HOME/docs/manifest-extraction-guide.md` — "code 為真" extraction rules used by Class C audit
+1. `$CARTOGRAPH_HOME/docs/manifest-template-essentials.md` — single skill-facing spec (folder layout, all entity skeletons, step rules, sequence_mermaid rules, Pub/Sub triple-record, common pitfalls, aggregator-auto). Fits in one Read.
+2. `$CARTOGRAPH_HOME/docs/manifest-extraction-guide.md` — "code 為真" extraction patterns used by Class C audit
 3. `$CARTOGRAPH_HOME/data/<repo-id>/service.yaml` — know what's currently indexed
 4. `$CARTOGRAPH_HOME/batch_plan/<repo-id>/batch_plan.md` (for `## Source` header) if present
 
-Skip `manifest-plan.md` — it's init-mode rollout sequencing, not relevant to incremental update.
-
-Abort if essentials (or full template) and extraction-guide are missing.
+Abort if essentials and extraction-guide are missing.
 
 ## Step 1 — Resolve source path
 
@@ -133,7 +131,7 @@ For every identified yaml, re-derive only the drift-prone fields:
 
 **Do not rewrite the whole file**. Patch only fields that diverged. Preserve `description` / `notes` / `sequence_mermaid` unless they now conflict with reality.
 
-For **new** routes / middlewares / tables / etc. not yet indexed: create the yaml from scratch following template §4–§8.
+For **new** routes / middlewares / tables / etc. not yet indexed: create the yaml from scratch following the relevant entity skeleton in essentials (`apis` §2 / `workers` §3 / `tables` §4 / `topics` §5 / `integrations` §6 / `middlewares` §7).
 
 For **removed** entities (handler deleted from source): ASK USER before deleting yaml. It may be a rename.
 
@@ -214,16 +212,10 @@ Do NOT `git commit` anything. Leave the Cartograph working tree dirty for the us
 
 ## Schema rules
 
-Same as `cartograph-continue`:
-- Pub/Sub triple-record
-- One event type → one step
-- `failure_semantic`: block / best_effort / log_only
-- `inline_auth_checks[]` for non-middleware auth
-- `schema_ref` inline type: `<file>#<OuterFunc>.<InnerType>`
-- Zod enum elements must be strings
-- Cross-repo: `steps[].target_api_ref`
-- `apis[].middlewares[]` carries only `{ id }`
+All yaml-content rules in `$CARTOGRAPH_HOME/docs/manifest-template-essentials.md` (read in Step 0). Update-specific reminders only:
+
 - `service.yaml#repo`: don't change; already fixed at init
+- Zod enum elements must be strings (quote `"1001"`)
 
 ## Targeted mode: `--api <id>`
 

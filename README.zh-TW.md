@@ -15,13 +15,15 @@ $CARTOGRAPH_HOME/
 │   ├── apis/ workers/ tables/ topics/ integrations/ middlewares/
 ├── batch_plan/<repo-id>/   ← init + continue skill 寫 plan + handover 的地方
 ├── docs/
-│   ├── manifest-template.md        ← schema 規格（每個欄位寫什麼）
+│   ├── manifest-template-essentials.md ← skill 讀的 spec（canonical）
 │   ├── manifest-extraction-guide.md ← 每個欄位從 source code 哪裡挖
-│   └── manifest-plan.md            ← 設計 rationale
+│   ├── manifest-template.md        ← 完整參考 + rationale（凍結維護、人類查閱用）
+│   └── manifest-plan.md            ← 設計 rationale（人類查閱用）
 ├── .claude/skills/         ← 寫 manifest 用的 Claude Code skills
 │   ├── cartograph-init/
 │   ├── cartograph-continue/
-│   └── cartograph-update/
+│   ├── cartograph-update/
+│   └── manifest-validate/
 └── src/                    ← Next.js aggregator（讀 data/ → render 網站）
 
 <anywhere>/<source-repo>/   ← clone 下來的 source repo（read-only；永不修改）
@@ -182,8 +184,9 @@ src/
                                    #   StepsTimeline, MermaidDiagram, SchemaTable,
                                    #   UsesPanel, CodeRef, CommandPalette, RepoSidebar
 docs/
-  manifest-template.md             # schema 規格 — canonical
+  manifest-template-essentials.md  # skill-facing spec — canonical
   manifest-extraction-guide.md     # 每個欄位從 source code 哪裡挖
+  manifest-template.md             # 完整參考 + rationale（凍結維護、人類查閱用）
   manifest-plan.md                 # 設計 rationale
   plan.md                          # 專案 rationale
   ui-architecture.md               # UI 三層導覽架構 + 擴充指南
@@ -194,7 +197,7 @@ docs/
 Schema 不夠用 → 依下列流程擴充：
 
 1. 在 `src/types/manifest.ts` 加新欄位為 `.optional()`（向後相容）
-2. 在 `docs/manifest-template.md` 增補說明（若欄位需對應 source code，也更新 `manifest-extraction-guide.md`）
+2. 在 `docs/manifest-template-essentials.md` 增補說明（若欄位需對應 source code，也更新 `manifest-extraction-guide.md`）
 3. 先在一個 repo 試點；穩定後若影響 skill 行為，更 SKILL.md
 
 上述全部可以在同一個 PR — Zod 契約、docs、skill 指令同步更新。

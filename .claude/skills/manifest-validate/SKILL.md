@@ -44,12 +44,12 @@ This class automated greps cannot catch. Past systematic audits have surfaced **
 
 | # | Drift type | Example | Spec hook |
 |---|---|---|---|
-| C1 | Missing `A->>S: <ServiceMethod>(...)` bridge arrow in mermaid | handler clearly calls `app.OrganizationService.ListAutoAssignmentRules`, yaml jumps from `A->>A: acl` straight to `S->>DB: ...` | `template.md §4` arrow type table |
-| C2 | Cross-layer arrows collapsed into one line | `A->>A: base + bearer-auth + inline org-scope check` (middleware + handler-layer inline check on one line) | `template.md §4` 「必須獨立 arrow」 |
-| C3 | Service-layer pre-check step skipped | `list-auto-assignment-rules` only wrote a `JOIN` but the real code does **two** queries: `GetAssignmentGeneralSettingByOrgID` then `ListAutoAssignmentRuleBySettingID` | `extraction-guide §2.3` + `template §4` |
+| C1 | Missing `A->>S: <ServiceMethod>(...)` bridge arrow in mermaid | handler clearly calls `app.OrganizationService.ListAutoAssignmentRules`, yaml jumps from `A->>A: acl` straight to `S->>DB: ...` | `essentials §9` arrow type table |
+| C2 | Cross-layer arrows collapsed into one line | `A->>A: base + bearer-auth + inline org-scope check` (middleware + handler-layer inline check on one line) | `essentials §9` 「必須獨立 arrow」 |
+| C3 | Service-layer pre-check step skipped | `list-auto-assignment-rules` only wrote a `JOIN` but the real code does **two** queries: `GetAssignmentGeneralSettingByOrgID` then `ListAutoAssignmentRuleBySettingID` | `extraction-guide §2.3` + `essentials §9` |
 | C4 | Repo-internal implementation hallucinated into a service step | `switch-priority` yaml wrote "offset to dodge unique (setting_id, order_of_priority)" — that's a repo-layer trick the service layer doesn't surface | `extraction-guide §0` "code 為真" + `§2.3.1` "抄進來" |
 | C5 | Description contradicts actual code semantics | yaml says "for each condition, fetch keywords if any"; real code only reads `conditions[0]` (multi-element only logs a warning) | `extraction-guide §0` |
-| C6 | Business-rule validate steps missing | `switch-priority` had no `isRuleLenEqual` / `areRulesExist` / `isRuleDuplicate` steps even though the service explicitly calls all three | `template §4` + `extraction-guide §2.3` |
+| C6 | Business-rule validate steps missing | `switch-priority` had no `isRuleLenEqual` / `areRulesExist` / `isRuleDuplicate` steps even though the service explicitly calls all three | `essentials §9` + `extraction-guide §2.3` |
 
 ### Audit flow per yaml (do not skip steps)
 
@@ -79,7 +79,7 @@ For each yaml you changed (or that Class A/B scans surfaced):
 5. **Compare against `sequence_mermaid`**:
    - Every `app.<X>Service.Method` call in the handler must appear as an `A->>S:` arrow.
    - Every repo / external call must appear as `S->>DB:` or `S->>X:`.
-   - DB arrow SQL granularity: `template.md §4` — action-phrase by default; keep SQL only for soft-delete filter / JOIN / UPSERT / partial unique dup / cursor ORDER BY / subquery / CTE / window.
+   - DB arrow SQL granularity: `essentials §9` — action-phrase by default; keep SQL only for soft-delete filter / JOIN / UPSERT / partial unique dup / cursor ORDER BY / subquery / CTE / window.
    - `Note over X,Y: failure_semantic=<sem>` whenever a publish / external call has non-`block` failure behaviour.
 
 6. **Update `uses.tables` / `uses.integrations` / `uses.topics_produced`** so they match what the code touches — no more, no less.

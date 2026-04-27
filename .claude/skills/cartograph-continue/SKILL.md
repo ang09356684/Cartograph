@@ -1,6 +1,6 @@
 ---
 name: cartograph-continue
-description: Continue implementing a Cartograph manifest batch plan. Reads the canonical templates + existing `batch_plan/<repo-id>/batch_plan.md` + `handover.md` (if present) first, then executes the next unchecked batch — writing yaml directly into `$CARTOGRAPH_HOME/data/<repo-id>/` (not into the source repo), updating service.yaml, validating, checking the box. Source repo is read-only input. At the end of each batch, if context usage exceeds ~50%, writes `handover.md` and suggests a fresh session. Use when user says 「繼續做 manifest」「做下一批」「continue batch plan」「implement next batch」.
+description: Continue implementing a Cartograph manifest batch plan. Reads `manifest-template-essentials.md` + `manifest-extraction-guide.md` + existing `batch_plan/<repo-id>/batch_plan.md` + `handover.md` (if present) first, then executes the next unchecked batch — writing yaml directly into `$CARTOGRAPH_HOME/data/<repo-id>/` (not into the source repo), updating service.yaml, validating, checking the box. Source repo is read-only input. At the end of each batch, if context usage exceeds ~50%, writes `handover.md` and suggests a fresh session. Use when user says 「繼續做 manifest」「做下一批」「continue batch plan」「implement next batch」.
 ---
 
 # cartograph-continue
@@ -30,12 +30,11 @@ CARTOGRAPH_HOME resolution order:
 
 ## Step 0 — Read these FIRST (mandatory, in order)
 
-1. `$CARTOGRAPH_HOME/docs/manifest-template.md`
-2. `$CARTOGRAPH_HOME/docs/manifest-extraction-guide.md`
-3. `$CARTOGRAPH_HOME/docs/manifest-plan.md`
-4. `$CARTOGRAPH_HOME/batch_plan/<repo-id>/batch_plan.md` — find first unchecked batch + the `## Source` header (source path + mode + `service.yaml#repo` value)
-5. `$CARTOGRAPH_HOME/batch_plan/<repo-id>/handover.md` **if exists** — prior session state (authoritative when conflicting with batch_plan checkboxes)
-6. `$CARTOGRAPH_HOME/data/<repo-id>/service.yaml` if already exists — current indices
+1. `$CARTOGRAPH_HOME/docs/manifest-template-essentials.md` — single skill-facing spec (covers folder layout, all entity skeletons, step rules, sequence_mermaid rules, Pub/Sub triple-record, description rule, cross-ref, common pitfalls, aggregator-auto). Fits in one Read. **Do not** load the full `manifest-template.md` — it's frozen rationale-only and ~3× the tokens.
+2. `$CARTOGRAPH_HOME/docs/manifest-extraction-guide.md` — "值從 source code 哪裡挖" (Go / Python / Node / Java patterns)
+3. `$CARTOGRAPH_HOME/batch_plan/<repo-id>/batch_plan.md` — find first unchecked batch + the `## Source` header (source path + mode + `service.yaml#repo` value)
+4. `$CARTOGRAPH_HOME/batch_plan/<repo-id>/handover.md` **if exists** — prior session state (authoritative when conflicting with batch_plan checkboxes)
+5. `$CARTOGRAPH_HOME/data/<repo-id>/service.yaml` if already exists — current indices
 
 Do not implement anything until all relevant reads are done. If `batch_plan/<repo-id>/batch_plan.md` is missing, redirect the user to `/cartograph-init` instead.
 
@@ -66,17 +65,12 @@ Every batch follows the same pattern (details depend on scope):
    curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3000/repos/<repo-id>/apis/<new-id>
    ```
 
-## Step 3 — Schema rules (do not forget)
+## Step 3 — Schema rules
 
-- Pub/Sub triple-record: `steps[]` + `uses.topics_produced[]` + `topics/<id>.yaml`
-- One handler → multiple event types: **one step per event type**
-- `failure_semantic`: block / best_effort / log_only
-- `inline_auth_checks[]` for handler/service inline auth (non-middleware)
-- `schema_ref` inline type: `<file>#<OuterFunc>.<InnerType>`
-- Zod enum elements must be strings (quote `"1001"`)
-- Cross-repo: `steps[].target_api_ref: "<repo>:<api-id>"`
-- Middleware: `apis[].middlewares[]` only `{ id }`; internals in `middlewares/<id>.yaml`
-- **`service.yaml#repo`**: set exactly what batch_plan.md's `## Source` section dictates — github → `<org>/<repo-name>`, local-only / other-remote → omit. Don't re-detect.
+All yaml-content rules live in `$CARTOGRAPH_HOME/docs/manifest-template-essentials.md` (read in Step 0). Continue-specific reminder only:
+
+- **`service.yaml#repo`** must follow `batch_plan.md` `## Source` decision — github → `<org>/<repo-name>`; local-only / other-remote → omit. **Don't re-detect** per session.
+- Zod enum elements must be strings (quote `"1001"`).
 
 ## Step 4 — Finalize the batch
 
@@ -120,12 +114,11 @@ Create if missing; append each session. Keep ≤ 250 lines — trim older entrie
 
 ## Read-first on resume
 
-1. $CARTOGRAPH_HOME/docs/manifest-template.md
+1. $CARTOGRAPH_HOME/docs/manifest-template-essentials.md
 2. $CARTOGRAPH_HOME/docs/manifest-extraction-guide.md
-3. $CARTOGRAPH_HOME/docs/manifest-plan.md
-4. $CARTOGRAPH_HOME/batch_plan/<repo-id>/batch_plan.md (checkbox state + ## Source)
-5. $CARTOGRAPH_HOME/batch_plan/<repo-id>/handover.md (this file)
-6. $CARTOGRAPH_HOME/data/<repo-id>/service.yaml
+3. $CARTOGRAPH_HOME/batch_plan/<repo-id>/batch_plan.md (checkbox state + ## Source)
+4. $CARTOGRAPH_HOME/batch_plan/<repo-id>/handover.md (this file)
+5. $CARTOGRAPH_HOME/data/<repo-id>/service.yaml
 
 ## Source
 

@@ -20,13 +20,15 @@ $CARTOGRAPH_HOME/
 │   ├── apis/ workers/ tables/ topics/ integrations/ middlewares/
 ├── batch_plan/<repo-id>/   ← init + continue skills write plan + handover here
 ├── docs/
-│   ├── manifest-template.md        ← schema spec (what fields to fill)
+│   ├── manifest-template-essentials.md ← skill-facing spec (canonical for skills)
 │   ├── manifest-extraction-guide.md ← how to extract each field from source code
-│   └── manifest-plan.md            ← design rationale
+│   ├── manifest-template.md        ← full reference + rationale (frozen, human-only)
+│   └── manifest-plan.md            ← design rationale (human-only)
 ├── .claude/skills/         ← Claude Code skills that write the manifest
 │   ├── cartograph-init/
 │   ├── cartograph-continue/
-│   └── cartograph-update/
+│   ├── cartograph-update/
+│   └── manifest-validate/
 └── src/                    ← Next.js aggregator (reads data/ → renders site)
 
 <anywhere>/<source-repo>/   ← cloned source repo (read-only; never modified)
@@ -223,8 +225,9 @@ src/
                                    #   StepsTimeline, MermaidDiagram, SchemaTable,
                                    #   UsesPanel, CodeRef, CommandPalette, RepoSidebar
 docs/
-  manifest-template.md             # schema spec — authoritative
+  manifest-template-essentials.md  # skill-facing spec — canonical
   manifest-extraction-guide.md     # how to fill each field from source code
+  manifest-template.md             # full reference + rationale (frozen, human-only)
   manifest-plan.md                 # design rationale
   plan.md                          # project rationale
   ui-architecture.md               # UI 3-layer navigation + extension guide
@@ -236,7 +239,7 @@ Schema gaps — add them via this flow:
 
 1. Add the new field to `src/types/manifest.ts` as `.optional()` (stays
    backwards-compatible).
-2. Document it in `docs/manifest-template.md` (+ extraction rule in
+2. Document it in `docs/manifest-template-essentials.md` (+ extraction rule in
    `manifest-extraction-guide.md` if it maps to source code).
 3. Pilot on one repo; once stable, include in the skill behaviour if relevant.
 

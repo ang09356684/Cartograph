@@ -1,6 +1,6 @@
 ---
 name: cartograph-init
-description: Bootstrap a Cartograph manifest for a source repo from zero. Reads the canonical templates (manifest-template / manifest-extraction-guide / manifest-plan) first, then scans the source repo's code to enumerate APIs / workers / tables / topics / integrations / middlewares, and produces a batch plan. Output is written INTO the Cartograph repo (`$CARTOGRAPH_HOME/batch_plan/<repo-id>/batch_plan.md`) — the source repo is never modified. Supports local-only repos (no GitHub remote) and cloned GitHub repos. Use when the user says 「init manifest」「初始化 manifest」「建立 batch plan」「從零開始做 manifest」.
+description: Bootstrap a Cartograph manifest for a source repo from zero. Reads `manifest-template-essentials.md` (single skill-facing spec) + `manifest-extraction-guide.md`, then scans the source repo's code to enumerate APIs / workers / tables / topics / integrations / middlewares, and produces a batch plan. Output is written INTO the Cartograph repo (`$CARTOGRAPH_HOME/batch_plan/<repo-id>/batch_plan.md`) — the source repo is never modified. Supports local-only repos (no GitHub remote) and cloned GitHub repos. Use when the user says 「init manifest」「初始化 manifest」「建立 batch plan」「從零開始做 manifest」.
 ---
 
 # cartograph-init
@@ -24,9 +24,9 @@ $CARTOGRAPH_HOME/              ← this is where we write
 │       ├── batch_plan.md
 │       └── handover.md          (created by cartograph-continue when needed)
 └── docs/
-    ├── manifest-template.md
+    ├── manifest-template-essentials.md   ← skill-facing spec
     ├── manifest-extraction-guide.md
-    └── manifest-plan.md
+    └── manifest-template.md              ← human reference (frozen)
 
 <source-path>/                   ← user's local clone of the source repo (read-only from our side)
 ├── internal/... (or app/, src/, ...)
@@ -62,9 +62,8 @@ test -d <source>
 
 In order, fully:
 
-1. `$CARTOGRAPH_HOME/docs/manifest-template.md`
-2. `$CARTOGRAPH_HOME/docs/manifest-extraction-guide.md`
-3. `$CARTOGRAPH_HOME/docs/manifest-plan.md`
+1. `$CARTOGRAPH_HOME/docs/manifest-template-essentials.md` — single skill-facing spec covering folder layout, all entity skeletons, step rules, sequence_mermaid rules, common pitfalls, aggregator-auto. Fits in one Read. **Do not** load the full `manifest-template.md` — it's frozen rationale-only.
+2. `$CARTOGRAPH_HOME/docs/manifest-extraction-guide.md` — value-extraction patterns per language (Go / Python / Node / Java).
 
 If `$CARTOGRAPH_HOME` is missing or templates don't exist, ABORT and ask the user for the correct path. Never run from stale memory.
 
@@ -135,9 +134,8 @@ Create `$CARTOGRAPH_HOME/batch_plan/<repo-id>/batch_plan.md` with this structure
 
 ## Templates to read (every session)
 
-1. `$CARTOGRAPH_HOME/docs/manifest-template.md`
+1. `$CARTOGRAPH_HOME/docs/manifest-template-essentials.md`
 2. `$CARTOGRAPH_HOME/docs/manifest-extraction-guide.md`
-3. `$CARTOGRAPH_HOME/docs/manifest-plan.md`
 
 ## Summary
 
@@ -171,15 +169,10 @@ Create `$CARTOGRAPH_HOME/batch_plan/<repo-id>/batch_plan.md` with this structure
 
 ## Schema rules reminder
 
-- Pub/Sub triple-record: `steps[]` + `uses.topics_produced[]` + `topics/<id>.yaml`
-- One handler → multiple event types: **each its own step**, don't merge
-- `failure_semantic`: block / best_effort / log_only
-- `inline_auth_checks[]` for non-middleware auth
-- `schema_ref` inline type: `<file>#<OuterFunc>.<InnerType>`
+All yaml-content rules in `$CARTOGRAPH_HOME/docs/manifest-template-essentials.md`. Init-specific reminder only:
+
+- `service.yaml#repo` per source mode recorded above (don't re-detect per session)
 - Zod enum elements must be strings (quote `"1001"`)
-- Cross-repo: `steps[].target_api_ref: "<repo>:<api-id>"`
-- `apis[].middlewares[]` only `{ id }`; internals in `middlewares/<id>.yaml`
-- `service.yaml#repo` per source mode recorded above
 
 ## Batches
 
