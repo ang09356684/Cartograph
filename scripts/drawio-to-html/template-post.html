@@ -1,0 +1,179 @@
+</script>
+
+<script src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
+<script>
+(() => {
+  const xml = document.getElementById('drawio-xml').textContent.trim();
+  const div = document.getElementById('diagram');
+  div.setAttribute('data-mxgraph', JSON.stringify({
+    highlight: 'none',
+    nav: false,
+    toolbar: 'zoom layers',
+    'toolbar-nohide': true,
+    edit: null,
+    lightbox: false,
+    border: 20,
+    xml: xml,
+  }));
+
+  const startedAt = Date.now();
+  const init = () => {
+    if (typeof GraphViewer === 'undefined') {
+      if (Date.now() - startedAt > 10000) {
+        showError('drawio viewer 載入失敗（檢查網路或 CDN 連線）');
+        return;
+      }
+      setTimeout(init, 50);
+      return;
+    }
+    try {
+      GraphViewer.createViewerForElement(div, attachInteractivity);
+    } catch (err) {
+      showError('drawio viewer 初始化失敗：' + (err && err.message));
+    }
+  };
+  init();
+
+  function showError(msg) {
+    const loading = document.getElementById('loading');
+    if (loading) loading.remove();
+    let err = document.getElementById('error');
+    if (!err) {
+      err = document.createElement('div');
+      err.id = 'error';
+      document.getElementById('diagram-wrap').appendChild(err);
+    }
+    err.textContent = msg;
+  }
+
+  function attachInteractivity(viewer) {
+    const loading = document.getElementById('loading');
+    if (loading) loading.remove();
+
+    const graph = viewer.graph;
+    const model = graph.getModel();
+    const cells = model.cells;
+
+    const nodeEdges = new Map();
+    const nodeNeighbors = new Map();
+    const ensure = (m, k) => { if (!m.has(k)) m.set(k, new Set()); return m.get(k); };
+    for (const id in cells) {
+      const c = cells[id];
+      if (!c.edge) continue;
+      const sId = c.source ? c.source.id : null;
+      const tId = c.target ? c.target.id : null;
+      if (sId) ensure(nodeEdges, sId).add(id);
+      if (tId) ensure(nodeEdges, tId).add(id);
+      if (sId && tId) {
+        ensure(nodeNeighbors, sId).add(tId);
+        ensure(nodeNeighbors, tId).add(sId);
+      }
+    }
+
+    const getEls = (cell) => {
+      const state = graph.view.getState(cell);
+      const arr = [];
+      if (state) {
+        if (state.shape && state.shape.node) arr.push(state.shape.node);
+        if (state.text && state.text.node) arr.push(state.text.node);
+      }
+      return arr;
+    };
+
+    const setOpacity = (cell, op) => {
+      getEls(cell).forEach((el) => {
+        el.style.transition = 'opacity 0.15s ease';
+        el.style.opacity = op;
+      });
+    };
+
+    const labelOf = (cell) => {
+      let v = cell.value;
+      if (v && typeof v === 'object' && v.getAttribute) {
+        v = v.getAttribute('label') || v.getAttribute('value') || cell.id;
+      }
+      return String(v || cell.id).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    };
+
+    let pinnedId = null;
+    let currentHoverId = null;
+    let leaveTimer = null;
+
+    const statusEl = document.getElementById('status');
+    const defaultStatus = statusEl.textContent;
+
+    const applyFocus = (id) => {
+      const relEdges = nodeEdges.get(id) || new Set();
+      const relNodes = new Set([id, ...(nodeNeighbors.get(id) || [])]);
+      for (const cid in cells) {
+        const c = cells[cid];
+        if (!c.vertex && !c.edge) continue;
+        const related = c.edge ? relEdges.has(cid) : relNodes.has(cid);
+        setOpacity(c, related ? '1' : '0.12');
+      }
+      statusEl.textContent = `聚焦 — ${labelOf(cells[id])}（連線 ${relEdges.size} 條／鄰居 ${relNodes.size - 1} 個）`;
+    };
+    const clearFocus = () => {
+      for (const cid in cells) {
+        const c = cells[cid];
+        if (!c.vertex && !c.edge) continue;
+        setOpacity(c, '1');
+      }
+      statusEl.textContent = defaultStatus;
+    };
+
+    const setHover = (id) => {
+      if (leaveTimer) { clearTimeout(leaveTimer); leaveTimer = null; }
+      if (pinnedId) return;
+      if (currentHoverId !== id) {
+        currentHoverId = id;
+        applyFocus(id);
+      }
+    };
+    const unsetHover = () => {
+      if (leaveTimer) clearTimeout(leaveTimer);
+      leaveTimer = setTimeout(() => {
+        if (pinnedId) return;
+        currentHoverId = null;
+        clearFocus();
+      }, 60);
+    };
+
+    for (const id in cells) {
+      const c = cells[id];
+      if (!c.vertex || !nodeEdges.has(id)) continue;
+      const els = getEls(c);
+      for (const el of els) {
+        el.style.cursor = 'pointer';
+        el.addEventListener('mouseenter', () => setHover(id));
+        el.addEventListener('mouseleave', () => unsetHover());
+        el.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          if (pinnedId === id) {
+            pinnedId = null;
+            clearFocus();
+          } else {
+            pinnedId = id;
+            applyFocus(id);
+          }
+        });
+      }
+    }
+
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape' && pinnedId) {
+        pinnedId = null;
+        currentHoverId = null;
+        clearFocus();
+      }
+    });
+    document.getElementById('reset').addEventListener('click', () => {
+      pinnedId = null;
+      currentHoverId = null;
+      clearFocus();
+    });
+  }
+})();
+</script>
+</body>
+</html>

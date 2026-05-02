@@ -33,6 +33,12 @@ export default async function RootLayout({
             <span className="text-slate-400 text-sm hidden md:inline">
               service-manifest visualization
             </span>
+            <a
+              href="/service-flow.html"
+              className="text-sm text-sky-600 hover:text-sky-700 no-underline hover:underline"
+            >
+              Service Flow ↗
+            </a>
             <div className="ml-auto">
               <CommandPaletteTrigger />
             </div>

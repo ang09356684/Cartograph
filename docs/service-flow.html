@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cartograph Service Flow — Interactive</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #fafafa; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang TC", "Microsoft JhengHei", sans-serif; color: #333; }
+  header { padding: 8px 16px; background: #fff; border-bottom: 1px solid #e0e0e0; font-size: 13px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  header strong { color: #1168bd; }
+  header .hint { color: #888; font-size: 12px; }
+  header button { padding: 4px 10px; font-size: 12px; border: 1px solid #ccc; background: #fff; border-radius: 4px; cursor: pointer; color: #555; }
+  header button:hover { border-color: #888; color: #222; }
+  #diagram-wrap { width: 100%; height: calc(100vh - 46px); overflow: auto; background: #fafafa; position: relative; }
+  #diagram { background: #fafafa; }
+  .mxgraph { background: #fafafa !important; max-width: none !important; }
+  .geToolbarContainer { background: #fff !important; }
+  #loading { position: absolute; top: 16px; left: 16px; color: #888; font-size: 12px; }
+  #error { position: absolute; top: 16px; left: 16px; color: #c0392b; font-size: 13px; padding: 12px; background: #fff; border: 1px solid #fadbd8; border-radius: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <div><strong>Cartograph Service Flow</strong> &nbsp;—&nbsp; <span>互動版（drawio 原生渲染）</span></div>
+  <div class="hint"><span id="status">滑鼠移到任一服務即可只顯示其關聯線；點擊可釘選，再點同一節點或按 Esc／Reset 解除。</span> <button id="reset">Reset</button></div>
+</header>
+<div id="diagram-wrap">
+  <div id="diagram"></div>
+  <div id="loading">Loading drawio viewer…</div>
+</div>
+
+<script id="drawio-xml" type="application/xml">
+<mxfile host="app.diagrams.net">
+  <diagram id="cartograph-service-flow-l1" name="Cartograph Service Flow (L1)">
+    <mxGraphModel dx="978" dy="1091" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="600" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="legend_box" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fafafa;strokeColor=#888;fontSize=9;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;" value="LEGEND&#xa;━━ HTTP service-to-service (red)&#xa;━━ Pub/Sub (purple)&#xa;━━ Cache / object-storage (orange)&#xa;━━ Inbound webhook (green)&#xa;━━ DB / default (grey)" vertex="1">
+          <mxGeometry height="86" width="220" x="1140" y="-100" as="geometry" />
+        </mxCell>
+        <mxCell id="end_user" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#08427b;strokeColor=#073a6e;fontColor=#ffffff;align=center;fontSize=10;" value="End User / Browser" vertex="1">
+          <mxGeometry height="32" width="160" x="280" y="-80" as="geometry" />
+        </mxCell>
+        <mxCell id="upload_widget" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#08427b;strokeColor=#073a6e;fontColor=#ffffff;align=center;fontSize=10;" value="Upload Widget&#xa;(3rd-party)" vertex="1">
+          <mxGeometry height="40" width="160" x="800" y="-84" as="geometry" />
+        </mxCell>
+        <UserObject label="&lt;b&gt;demo-A&lt;/b&gt;&#xa;URL shortener&#xa;Go · Gin · API + Worker" link="/repos/demo-A" id="demo_a">
+          <mxCell parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1168bd;strokeColor=#0b4884;fontColor=#fff;align=center;fontSize=11;" vertex="1">
+            <mxGeometry height="90" width="240" x="200" y="60" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="&lt;b&gt;demo-B&lt;/b&gt;&#xa;Image processing&#xa;Go · Gin · API + Worker" link="/repos/demo-B" id="demo_b">
+          <mxCell parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1168bd;strokeColor=#0b4884;fontColor=#fff;align=center;fontSize=11;" vertex="1">
+            <mxGeometry height="90" width="240" x="760" y="60" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="topic_clicks" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#7b3a73;strokeColor=#532052;fontColor=#fff;align=center;fontSize=10;fontStyle=1;" value="link-clicks&#xa;(gcp-pubsub)" vertex="1">
+          <mxGeometry height="50" width="200" x="220" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="topic_thumbs" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#7b3a73;strokeColor=#532052;fontColor=#fff;align=center;fontSize=10;fontStyle=1;" value="thumbnail-tasks&#xa;(gcp-pubsub)" vertex="1">
+          <mxGeometry height="50" width="200" x="780" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="redis" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#bbbbbb;strokeColor=#666;fontColor=#fff;align=center;fontSize=10;dashed=1;" value="Redis (demo-A only)&#xa;slug cache · rate-limit" vertex="1">
+          <mxGeometry height="44" width="180" x="60" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="pg_a" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#bbbbbb;strokeColor=#666;fontColor=#fff;align=center;fontSize=10;dashed=1;" value="Postgres (demo-A)&#xa;link · click_event" vertex="1">
+          <mxGeometry height="44" width="180" x="280" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="pg_b" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#bbbbbb;strokeColor=#666;fontColor=#fff;align=center;fontSize=10;dashed=1;" value="Postgres (demo-B)&#xa;image · upload_session" vertex="1">
+          <mxGeometry height="44" width="200" x="780" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="gcs" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#bbbbbb;strokeColor=#666;fontColor=#fff;align=center;fontSize=10;dashed=1;" value="GCS (demo-B only)&#xa;uploads · thumbnails" vertex="1">
+          <mxGeometry height="44" width="180" x="1020" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="e_user_a" edge="1" parent="1" source="end_user" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=8;" target="demo_a" value="HTTP">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_user_b" edge="1" parent="1" source="end_user" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;entryX=0;entryY=0.3;fontSize=8;" target="demo_b" value="HTTP">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_widget_b" edge="1" parent="1" source="upload_widget" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;strokeColor=#27ae60;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=8;" target="demo_b" value="signed webhook">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_a_b" edge="1" parent="1" source="demo_a" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;strokeColor=#c0392b;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=9;fontStyle=1;" target="demo_b" value="POST /images/thumbnail">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_a_topic" edge="1" parent="1" source="demo_a" style="startArrow=classic;endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;strokeColor=#7b3a73;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=8;" target="topic_clicks" value="produce / consume">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_b_topic" edge="1" parent="1" source="demo_b" style="startArrow=classic;endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;strokeColor=#7b3a73;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=8;" target="topic_thumbs" value="produce / consume">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_a_redis" edge="1" parent="1" source="demo_a" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;strokeColor=#e67e22;exitX=0;exitY=0.8;entryX=0.5;entryY=0;fontSize=8;entryDx=0;entryDy=0;" target="redis">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="150" y="132" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_a_pg" edge="1" parent="1" source="demo_a" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0.75;exitY=1;entryX=0.516;entryY=-0.066;fontSize=8;entryDx=0;entryDy=0;entryPerimeter=0;exitDx=0;exitDy=0;" target="pg_a">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="380" y="180" />
+              <mxPoint x="440" y="180" />
+              <mxPoint x="440" y="310" />
+              <mxPoint x="373" y="310" />
+            </Array>
+            <mxPoint x="440" y="140" as="sourcePoint" />
+            <mxPoint x="490" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_b_pg" edge="1" parent="1" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0.25;exitY=1;entryX=0.5;entryY=0;fontSize=8;exitDx=0;exitDy=0;entryDx=0;entryDy=0;" target="pg_b">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="840" y="180" />
+              <mxPoint x="770" y="180" />
+              <mxPoint x="770" y="320" />
+              <mxPoint x="880" y="320" />
+            </Array>
+            <mxPoint x="840" y="150" as="sourcePoint" />
+            <mxPoint x="770" y="360" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_b_gcs" edge="1" parent="1" source="demo_b" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;strokeColor=#e67e22;exitX=1;exitY=0.8;entryX=0.5;entryY=0;fontSize=8;entryDx=0;entryDy=0;" target="gcs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
+</script>
+
+<script src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
+<script>
+(() => {
+  const xml = document.getElementById('drawio-xml').textContent.trim();
+  const div = document.getElementById('diagram');
+  div.setAttribute('data-mxgraph', JSON.stringify({
+    highlight: 'none',
+    nav: false,
+    toolbar: 'zoom layers',
+    'toolbar-nohide': true,
+    edit: null,
+    lightbox: false,
+    border: 20,
+    xml: xml,
+  }));
+
+  const startedAt = Date.now();
+  const init = () => {
+    if (typeof GraphViewer === 'undefined') {
+      if (Date.now() - startedAt > 10000) {
+        showError('drawio viewer 載入失敗（檢查網路或 CDN 連線）');
+        return;
+      }
+      setTimeout(init, 50);
+      return;
+    }
+    try {
+      GraphViewer.createViewerForElement(div, attachInteractivity);
+    } catch (err) {
+      showError('drawio viewer 初始化失敗：' + (err && err.message));
+    }
+  };
+  init();
+
+  function showError(msg) {
+    const loading = document.getElementById('loading');
+    if (loading) loading.remove();
+    let err = document.getElementById('error');
+    if (!err) {
+      err = document.createElement('div');
+      err.id = 'error';
+      document.getElementById('diagram-wrap').appendChild(err);
+    }
+    err.textContent = msg;
+  }
+
+  function attachInteractivity(viewer) {
+    const loading = document.getElementById('loading');
+    if (loading) loading.remove();
+
+    const graph = viewer.graph;
+    const model = graph.getModel();
+    const cells = model.cells;
+
+    const nodeEdges = new Map();
+    const nodeNeighbors = new Map();
+    const ensure = (m, k) => { if (!m.has(k)) m.set(k, new Set()); return m.get(k); };
+    for (const id in cells) {
+      const c = cells[id];
+      if (!c.edge) continue;
+      const sId = c.source ? c.source.id : null;
+      const tId = c.target ? c.target.id : null;
+      if (sId) ensure(nodeEdges, sId).add(id);
+      if (tId) ensure(nodeEdges, tId).add(id);
+      if (sId && tId) {
+        ensure(nodeNeighbors, sId).add(tId);
+        ensure(nodeNeighbors, tId).add(sId);
+      }
+    }
+
+    const getEls = (cell) => {
+      const state = graph.view.getState(cell);
+      const arr = [];
+      if (state) {
+        if (state.shape && state.shape.node) arr.push(state.shape.node);
+        if (state.text && state.text.node) arr.push(state.text.node);
+      }
+      return arr;
+    };
+
+    const setOpacity = (cell, op) => {
+      getEls(cell).forEach((el) => {
+        el.style.transition = 'opacity 0.15s ease';
+        el.style.opacity = op;
+      });
+    };
+
+    const labelOf = (cell) => {
+      let v = cell.value;
+      if (v && typeof v === 'object' && v.getAttribute) {
+        v = v.getAttribute('label') || v.getAttribute('value') || cell.id;
+      }
+      return String(v || cell.id).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    };
+
+    let pinnedId = null;
+    let currentHoverId = null;
+    let leaveTimer = null;
+
+    const statusEl = document.getElementById('status');
+    const defaultStatus = statusEl.textContent;
+
+    const applyFocus = (id) => {
+      const relEdges = nodeEdges.get(id) || new Set();
+      const relNodes = new Set([id, ...(nodeNeighbors.get(id) || [])]);
+      for (const cid in cells) {
+        const c = cells[cid];
+        if (!c.vertex && !c.edge) continue;
+        const related = c.edge ? relEdges.has(cid) : relNodes.has(cid);
+        setOpacity(c, related ? '1' : '0.12');
+      }
+      statusEl.textContent = `聚焦 — ${labelOf(cells[id])}（連線 ${relEdges.size} 條／鄰居 ${relNodes.size - 1} 個）`;
+    };
+    const clearFocus = () => {
+      for (const cid in cells) {
+        const c = cells[cid];
+        if (!c.vertex && !c.edge) continue;
+        setOpacity(c, '1');
+      }
+      statusEl.textContent = defaultStatus;
+    };
+
+    const setHover = (id) => {
+      if (leaveTimer) { clearTimeout(leaveTimer); leaveTimer = null; }
+      if (pinnedId) return;
+      if (currentHoverId !== id) {
+        currentHoverId = id;
+        applyFocus(id);
+      }
+    };
+    const unsetHover = () => {
+      if (leaveTimer) clearTimeout(leaveTimer);
+      leaveTimer = setTimeout(() => {
+        if (pinnedId) return;
+        currentHoverId = null;
+        clearFocus();
+      }, 60);
+    };
+
+    for (const id in cells) {
+      const c = cells[id];
+      if (!c.vertex || !nodeEdges.has(id)) continue;
+      const els = getEls(c);
+      for (const el of els) {
+        el.style.cursor = 'pointer';
+        el.addEventListener('mouseenter', () => setHover(id));
+        el.addEventListener('mouseleave', () => unsetHover());
+        el.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          if (pinnedId === id) {
+            pinnedId = null;
+            clearFocus();
+          } else {
+            pinnedId = id;
+            applyFocus(id);
+          }
+        });
+      }
+    }
+
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape' && pinnedId) {
+        pinnedId = null;
+        currentHoverId = null;
+        clearFocus();
+      }
+    });
+    document.getElementById('reset').addEventListener('click', () => {
+      pinnedId = null;
+      currentHoverId = null;
+      clearFocus();
+    });
+  }
+})();
+</script>
+</body>
+</html>

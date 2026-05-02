@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__HEADING__ — Interactive</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #fafafa; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang TC", "Microsoft JhengHei", sans-serif; color: #333; }
+  header { padding: 8px 16px; background: #fff; border-bottom: 1px solid #e0e0e0; font-size: 13px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  header strong { color: #1168bd; }
+  header .hint { color: #888; font-size: 12px; }
+  header button { padding: 4px 10px; font-size: 12px; border: 1px solid #ccc; background: #fff; border-radius: 4px; cursor: pointer; color: #555; }
+  header button:hover { border-color: #888; color: #222; }
+  #diagram-wrap { width: 100%; height: calc(100vh - 46px); overflow: auto; background: #fafafa; position: relative; }
+  #diagram { background: #fafafa; }
+  .mxgraph { background: #fafafa !important; max-width: none !important; }
+  .geToolbarContainer { background: #fff !important; }
+  #loading { position: absolute; top: 16px; left: 16px; color: #888; font-size: 12px; }
+  #error { position: absolute; top: 16px; left: 16px; color: #c0392b; font-size: 13px; padding: 12px; background: #fff; border: 1px solid #fadbd8; border-radius: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <div><strong>__HEADING__</strong> &nbsp;—&nbsp; <span>互動版（drawio 原生渲染）</span></div>
+  <div class="hint"><span id="status">滑鼠移到任一服務即可只顯示其關聯線；點擊可釘選，再點同一節點或按 Esc／Reset 解除。</span> <button id="reset">Reset</button></div>
+</header>
+<div id="diagram-wrap">
+  <div id="diagram"></div>
+  <div id="loading">Loading drawio viewer…</div>
+</div>
+
+<script id="drawio-xml" type="application/xml">

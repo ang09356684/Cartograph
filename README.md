@@ -202,6 +202,38 @@ Design decisions / how to extend the UI: [`docs/ui-architecture.md`](docs/ui-arc
 - `/repos/<repo>` — repo overview (tech, components, env, deployments, counts)
 - `/repos/<repo>/{apis,workers,tables,topics,integrations,middlewares}` — list
 - `/repos/<repo>/{kind}/<id>` — entity detail
+- `/service-flow.html` — hand-drawn drawio service relationship map (interactive
+  viewer — see below)
+
+## Service flow diagram (hand-drawn)
+
+For service-to-service relationships that don't naturally fall out of the
+per-API mermaid sequence diagrams (cross-service HTTP calls, pub/sub fan-out,
+shared infra), Cartograph ships a **drawio-rendered interactive map** linked
+from the header (`Service Flow ↗`).
+
+- **Source**: [`docs/service-flow.drawio`](docs/service-flow.drawio) — edit in
+  draw.io desktop or [app.diagrams.net](https://app.diagrams.net).
+- **Render**: regenerate the HTML viewer from the `.drawio` with the
+  `drawio-to-html` skill (or manually):
+
+  ```bash
+  python3 scripts/drawio-to-html/build.py docs/service-flow.drawio \
+      --title "Cartograph Service Flow"
+  ```
+
+  Outputs `docs/service-flow.html` (canonical) + `public/service-flow.html`
+  (Next.js static asset, served at `/service-flow.html`). Both files are
+  byte-identical after each run.
+- **Interactivity**: drawio's `viewer-static.min.js` (loaded from
+  `viewer.diagrams.net`) does the rendering; a small JS layer dims unrelated
+  cells on hover and pins focus on click (Esc / Reset clears).
+
+To add a new diagram (e.g. a data-flow or deployment map): drop
+`docs/<name>.drawio`, run the build script, then add an `<a href="/<name>.html">`
+next to `Service Flow ↗` in `src/app/layout.tsx`. See
+[`.claude/skills/drawio-to-html/SKILL.md`](.claude/skills/drawio-to-html/SKILL.md)
+for details.
 
 ## Folder map
 
@@ -212,6 +244,12 @@ batch_plan/                        # one folder per source repo — plan + hando
   cartograph-init/SKILL.md
   cartograph-continue/SKILL.md
   cartograph-update/SKILL.md
+  manifest-validate/SKILL.md
+  drawio-to-html/SKILL.md          # .drawio → interactive HTML viewer
+scripts/drawio-to-html/
+  build.py                         # template substitution + docs/public sync
+  template-pre.html                # head + header markup (with __HEADING__ slot)
+  template-post.html               # viewer-static loader + hover/pin interactivity
 src/
   types/manifest.ts                # Zod schemas + inferred TS types (the contract)
   lib/loader.ts                    # reads YAML → validates → returns typed Repo[]

@@ -1,0 +1,99 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="cartograph-service-flow-l1" name="Cartograph Service Flow (L1)">
+    <mxGraphModel dx="978" dy="1091" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="600" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="legend_box" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fafafa;strokeColor=#888;fontSize=9;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;" value="LEGEND&#xa;━━ HTTP service-to-service (red)&#xa;━━ Pub/Sub (purple)&#xa;━━ Cache / object-storage (orange)&#xa;━━ Inbound webhook (green)&#xa;━━ DB / default (grey)" vertex="1">
+          <mxGeometry height="86" width="220" x="1140" y="-100" as="geometry" />
+        </mxCell>
+        <mxCell id="end_user" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#08427b;strokeColor=#073a6e;fontColor=#ffffff;align=center;fontSize=10;" value="End User / Browser" vertex="1">
+          <mxGeometry height="32" width="160" x="280" y="-80" as="geometry" />
+        </mxCell>
+        <mxCell id="upload_widget" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#08427b;strokeColor=#073a6e;fontColor=#ffffff;align=center;fontSize=10;" value="Upload Widget&#xa;(3rd-party)" vertex="1">
+          <mxGeometry height="40" width="160" x="800" y="-84" as="geometry" />
+        </mxCell>
+        <UserObject label="&lt;b&gt;demo-A&lt;/b&gt;&#xa;URL shortener&#xa;Go · Gin · API + Worker" link="/repos/demo-A" id="demo_a">
+          <mxCell parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1168bd;strokeColor=#0b4884;fontColor=#fff;align=center;fontSize=11;" vertex="1">
+            <mxGeometry height="90" width="240" x="200" y="60" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="&lt;b&gt;demo-B&lt;/b&gt;&#xa;Image processing&#xa;Go · Gin · API + Worker" link="/repos/demo-B" id="demo_b">
+          <mxCell parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1168bd;strokeColor=#0b4884;fontColor=#fff;align=center;fontSize=11;" vertex="1">
+            <mxGeometry height="90" width="240" x="760" y="60" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="topic_clicks" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#7b3a73;strokeColor=#532052;fontColor=#fff;align=center;fontSize=10;fontStyle=1;" value="link-clicks&#xa;(gcp-pubsub)" vertex="1">
+          <mxGeometry height="50" width="200" x="220" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="topic_thumbs" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#7b3a73;strokeColor=#532052;fontColor=#fff;align=center;fontSize=10;fontStyle=1;" value="thumbnail-tasks&#xa;(gcp-pubsub)" vertex="1">
+          <mxGeometry height="50" width="200" x="780" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="redis" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#bbbbbb;strokeColor=#666;fontColor=#fff;align=center;fontSize=10;dashed=1;" value="Redis (demo-A only)&#xa;slug cache · rate-limit" vertex="1">
+          <mxGeometry height="44" width="180" x="60" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="pg_a" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#bbbbbb;strokeColor=#666;fontColor=#fff;align=center;fontSize=10;dashed=1;" value="Postgres (demo-A)&#xa;link · click_event" vertex="1">
+          <mxGeometry height="44" width="180" x="280" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="pg_b" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#bbbbbb;strokeColor=#666;fontColor=#fff;align=center;fontSize=10;dashed=1;" value="Postgres (demo-B)&#xa;image · upload_session" vertex="1">
+          <mxGeometry height="44" width="200" x="780" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="gcs" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#bbbbbb;strokeColor=#666;fontColor=#fff;align=center;fontSize=10;dashed=1;" value="GCS (demo-B only)&#xa;uploads · thumbnails" vertex="1">
+          <mxGeometry height="44" width="180" x="1020" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="e_user_a" edge="1" parent="1" source="end_user" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=8;" target="demo_a" value="HTTP">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_user_b" edge="1" parent="1" source="end_user" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;entryX=0;entryY=0.3;fontSize=8;" target="demo_b" value="HTTP">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_widget_b" edge="1" parent="1" source="upload_widget" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;strokeColor=#27ae60;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=8;" target="demo_b" value="signed webhook">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_a_b" edge="1" parent="1" source="demo_a" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;strokeColor=#c0392b;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=9;fontStyle=1;" target="demo_b" value="POST /images/thumbnail">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_a_topic" edge="1" parent="1" source="demo_a" style="startArrow=classic;endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;strokeColor=#7b3a73;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=8;" target="topic_clicks" value="produce / consume">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_b_topic" edge="1" parent="1" source="demo_b" style="startArrow=classic;endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;strokeColor=#7b3a73;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=8;" target="topic_thumbs" value="produce / consume">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_a_redis" edge="1" parent="1" source="demo_a" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;strokeColor=#e67e22;exitX=0;exitY=0.8;entryX=0.5;entryY=0;fontSize=8;entryDx=0;entryDy=0;" target="redis">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="150" y="132" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_a_pg" edge="1" parent="1" source="demo_a" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0.75;exitY=1;entryX=0.516;entryY=-0.066;fontSize=8;entryDx=0;entryDy=0;entryPerimeter=0;exitDx=0;exitDy=0;" target="pg_a">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="380" y="180" />
+              <mxPoint x="440" y="180" />
+              <mxPoint x="440" y="310" />
+              <mxPoint x="373" y="310" />
+            </Array>
+            <mxPoint x="440" y="140" as="sourcePoint" />
+            <mxPoint x="490" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_b_pg" edge="1" parent="1" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0.25;exitY=1;entryX=0.5;entryY=0;fontSize=8;exitDx=0;exitDy=0;entryDx=0;entryDy=0;" target="pg_b">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="840" y="180" />
+              <mxPoint x="770" y="180" />
+              <mxPoint x="770" y="320" />
+              <mxPoint x="880" y="320" />
+            </Array>
+            <mxPoint x="840" y="150" as="sourcePoint" />
+            <mxPoint x="770" y="360" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_b_gcs" edge="1" parent="1" source="demo_b" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;strokeColor=#e67e22;exitX=1;exitY=0.8;entryX=0.5;entryY=0;fontSize=8;entryDx=0;entryDy=0;" target="gcs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

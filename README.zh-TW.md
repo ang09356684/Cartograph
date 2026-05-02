@@ -161,6 +161,33 @@ UI 的設計決策與擴充方式見 [`docs/ui-architecture.md`](docs/ui-archite
 - `/repos/<repo>` — repo 總覽（tech / components / env / deployments / counts）
 - `/repos/<repo>/{apis,workers,tables,topics,integrations,middlewares}` — list page
 - `/repos/<repo>/{kind}/<id>` — entity detail
+- `/service-flow.html` — 手繪 drawio service 關聯圖（互動版，見下方）
+
+## Service flow 圖（手繪 drawio）
+
+每支 API 各自的 mermaid sequence diagram 已經能描述「該 API 內部的呼叫順序」，但 service-to-service
+的關聯（跨 service HTTP 呼叫、pub/sub 扇出、共用 infra）通常需要一張 L1 的 service map。Cartograph
+透過 drawio 維護這張圖，並在 header 加上 `Service Flow ↗` 連結到互動版。
+
+- **來源**：[`docs/service-flow.drawio`](docs/service-flow.drawio) — 用 draw.io desktop
+  或 [app.diagrams.net](https://app.diagrams.net) 編輯。
+- **產生 HTML viewer**：呼叫 `drawio-to-html` skill，或直接：
+
+  ```bash
+  python3 scripts/drawio-to-html/build.py docs/service-flow.drawio \
+      --title "Cartograph Service Flow"
+  ```
+
+  會同時產出 `docs/service-flow.html`（canonical，跟 `.drawio` 放一起方便 git diff）跟
+  `public/service-flow.html`（Next.js static asset，serve 在 `/service-flow.html`）。
+  兩個檔案每次跑完都是 byte-identical。
+- **互動行為**：drawio 的 `viewer-static.min.js`（從 `viewer.diagrams.net` 載入）負責
+  pixel-perfect 渲染；上層的 JS 層 hook hover / click，hover 時把無關 cell 淡化到
+  `opacity: 0.12`，click 釘選，再點同節點 / Esc / Reset 解除。
+
+要新增別張圖（例如 data-flow / deployment）：把 `docs/<name>.drawio` 放好，跑 build script，再到
+`src/app/layout.tsx` 在 `Service Flow ↗` 旁邊加一個 `<a href="/<name>.html">`。詳細用法見
+[`.claude/skills/drawio-to-html/SKILL.md`](.claude/skills/drawio-to-html/SKILL.md)。
 
 ## 資料夾對應
 
@@ -171,6 +198,12 @@ batch_plan/                        # 每個 source repo 一個資料夾 — plan
   cartograph-init/SKILL.md
   cartograph-continue/SKILL.md
   cartograph-update/SKILL.md
+  manifest-validate/SKILL.md
+  drawio-to-html/SKILL.md          # .drawio → 互動 HTML viewer
+scripts/drawio-to-html/
+  build.py                         # template 拼接 + docs / public 同步
+  template-pre.html                # head + header 區塊（含 __HEADING__ 替換點）
+  template-post.html               # viewer-static loader + hover / pin 互動
 src/
   types/manifest.ts                # Zod schema + inferred TS type（規格的單一來源）
   lib/loader.ts                    # 讀 YAML → 驗 schema → 回傳 typed Repo[]
