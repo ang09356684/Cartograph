@@ -71,23 +71,42 @@ async function loadRepo(repoId: string): Promise<Repo> {
   return { service, apis, workers, tables, topics, integrations, middlewares };
 }
 
+// Process-level cache. Next.js build is one Node process, so memoizing here
+// lets all SSG routes share a single yaml read + Zod parse pass.
+let cachedIds: Promise<string[]> | null = null;
+const repoCache = new Map<string, Promise<Repo>>();
+
 export async function listRepoIds(): Promise<string[]> {
-  const entries = await fs.readdir(DATA_ROOT, { withFileTypes: true });
-  return entries
-    .filter((e) => e.isDirectory())
-    .map((e) => e.name)
-    .sort();
+  if (!cachedIds) {
+    cachedIds = (async () => {
+      const entries = await fs.readdir(DATA_ROOT, { withFileTypes: true });
+      return entries
+        .filter((e) => e.isDirectory())
+        .map((e) => e.name)
+        .sort();
+    })();
+  }
+  return cachedIds;
+}
+
+function loadRepoCached(repoId: string): Promise<Repo> {
+  let p = repoCache.get(repoId);
+  if (!p) {
+    p = loadRepo(repoId);
+    repoCache.set(repoId, p);
+  }
+  return p;
 }
 
 export async function loadRepos(): Promise<Repo[]> {
   const ids = await listRepoIds();
-  return Promise.all(ids.map(loadRepo));
+  return Promise.all(ids.map(loadRepoCached));
 }
 
 export async function getRepo(repoId: string): Promise<Repo | null> {
   const ids = await listRepoIds();
   if (!ids.includes(repoId)) return null;
-  return loadRepo(repoId);
+  return loadRepoCached(repoId);
 }
 
 // 以 base id 聚合同一個 API 的多個 version。
