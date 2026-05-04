@@ -116,20 +116,37 @@ For each classified source file, map to **specific yaml ids** in `$CARTOGRAPH_HO
 
 If `--api <id>` was given, **skip classification** — go straight to Step 5 for that single yaml.
 
-## Step 5 — Patch each identified yaml
+## Step 5 — Patch each identified yaml (single pass)
 
-For every identified yaml, re-derive only the drift-prone fields:
+**Single-pass rule**: for each yaml you touch, fix EVERYTHING that needs fixing in this one edit — `steps[]` + `sequence_mermaid` + `uses.*` + `response[].fields[]` + index entries — before moving to the next yaml. Do NOT defer mermaid drift to Step 7b and patch it on a second pass; that creates churn and dirty intermediate states.
+
+For every identified yaml, re-derive the drift-prone fields:
 
 | Yaml kind | Fields to re-derive |
 |---|---|
-| `apis/<id>.yaml` | `code_ref`, `path`, `method`, `middlewares[]`, `request.schema_ref`, `response[]`, `steps[]`, `uses.*` |
+| `apis/<id>.yaml` | `code_ref`, `path`, `method`, `middlewares[]`, `request.schema_ref`, `response[]`, `steps[]`, `uses.*`, **`sequence_mermaid` arrows** |
 | `middlewares/<id>.yaml` | `code_ref`, `config.env_vars[]`, `reads_context[]`, `writes_context[]`, `error_responses[]` |
 | `tables/<id>.yaml` | `columns[]`, `indexes[]`, `migration_ref` (prefer staging `\d` if accessible) |
 | `topics/<id>.yaml` | `message_schema.fields[]`, `attributes[]`, `produced_by[]` |
-| `workers/<id>.yaml` | `code_ref`, `subscribes_topic`, `processors[]`, `steps[]` |
+| `workers/<id>.yaml` | `code_ref`, `subscribes_topic`, `processors[]`, `steps[]`, **`sequence_mermaid` arrows** |
 | `integrations/<id>.yaml` | `operations[]`, `outbound.operations[].url`, `code_ref` |
 
-**Do not rewrite the whole file**. Patch only fields that diverged. Preserve `description` / `notes` / `sequence_mermaid` unless they now conflict with reality.
+**Do not rewrite the whole file** — only diverged fields. But within each diverged field, get it fully right in this pass.
+
+### `sequence_mermaid`: what to change vs preserve
+
+Mermaid has two layers; treat them differently:
+
+| Layer | Examples | Action when `steps[]` changes |
+|---|---|---|
+| **Logical (must co-update with steps)** | arrows themselves: `A->>S: ServiceMethod()` / `S->>DB: insert ...` / `S->>PS: Publish ...`; arrow order; participant set when a new external actor enters | Add / remove / reword to match the new `steps[]` exactly. Use the §9 arrow ↔ step mapping in essentials. |
+| **Visual (preserve)** | participant aliases (`Svc as ConversionService`), `Note over` annotations, branch labels, comment lines | Keep as-is unless they directly contradict reality. |
+
+Concretely: if you add `step: action: publish, target: topic:foo` you MUST add a corresponding `S->>PS: Publish FooMsg{...}` arrow (and a `Note over S,PS: failure_semantic=<sem>` if non-block). If you remove a step, remove its arrow. If `steps[]` count and arrows count diverge in the patched file, you broke the single-pass rule.
+
+`description` / `notes` are pure prose — preserve unless they contradict the new code reality.
+
+### New / removed entities
 
 For **new** routes / middlewares / tables / etc. not yet indexed: create the yaml from scratch following the relevant entity skeleton in essentials (`apis` §2 / `workers` §3 / `tables` §4 / `topics` §5 / `integrations` §6 / `middlewares` §7).
 
@@ -164,6 +181,8 @@ Build `CHANGED_YAMLS` from what Step 5 + Step 6 actually wrote (patched + newly 
   4. compare `sequence_mermaid` arrows vs code (every `<X>Service.M()` in the handler layer → `A->>S:`; every DB / external → `S->>DB:` / `S->>X:`)
   5. fix `uses.tables` / `uses.integrations` / `uses.topics_produced` to match
   6. apply fixes in-place before moving on
+
+7b is a **safety net**, not the primary place to fix mermaid drift — with single-pass Step 5 you should already have arrows aligned with steps. If 7b flags arrow drift, that means Step 5 missed something for that yaml; go back, fix it inline, and re-run 7b. Do not accumulate "known mermaid drift to fix in next pass."
 
 If manifest-validate reports unresolved Class A / B / C issues, **do NOT proceed to Step 8** (marker stays on old baseline so next run can retry). Surface the issues in the Step 8 report under "needs manual review".
 
